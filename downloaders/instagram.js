@@ -4,7 +4,9 @@ const path = require('path');
 
 class InstagramDownloader {
     constructor() {
-        this.cookiesPath = path.join(__dirname, '..', 'instagram_cookies.json');
+        // Volume 경로 (Railway) 또는 로컬 경로
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, '..');
+        this.cookiesPath = path.join(dataDir, 'instagram_cookies.json');
     }
 
     extractShortcode(url) {
@@ -13,24 +15,11 @@ class InstagramDownloader {
     }
 
     loadSessionId() {
-        // 1. 환경변수에서 먼저 확인 (Railway 배포용)
-        if (process.env.INSTAGRAM_SESSION_ID) {
-            console.log('[Instagram] 환경변수에서 sessionid 로드');
-            const envSession = process.env.INSTAGRAM_SESSION_ID.trim();
-            try {
-                return decodeURIComponent(envSession);
-            } catch {
-                return envSession;
-            }
-        }
-
-        // 2. 파일에서 확인 (로컬 개발용)
         try {
             if (fs.existsSync(this.cookiesPath)) {
                 const data = JSON.parse(fs.readFileSync(this.cookiesPath, 'utf8'));
                 const session = data.find(c => c.name === 'sessionid');
                 if (session?.value) {
-                    // URL 디코딩 (이미 디코딩되어 있으면 그대로 반환)
                     try {
                         return decodeURIComponent(session.value);
                     } catch {

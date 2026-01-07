@@ -108,10 +108,14 @@ app.post('/api/instagram/cookie', (req, res) => {
             }
         ];
 
-        const cookiesPath = path.join(__dirname, 'instagram_cookies.json');
+        const dataDir = process.env.DATA_DIR || __dirname;
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+        const cookiesPath = path.join(dataDir, 'instagram_cookies.json');
         fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
 
-        console.log('[Server] Instagram sessionid 저장 완료');
+        console.log('[Server] Instagram sessionid 저장 완료:', cookiesPath);
         return res.json({ success: true, message: '쿠키가 저장되었습니다!' });
     } catch (error) {
         console.error('쿠키 저장 에러:', error);
@@ -121,14 +125,12 @@ app.post('/api/instagram/cookie', (req, res) => {
 
 // Instagram 로그인 상태 확인
 app.get('/api/instagram/status', (req, res) => {
-    const cookiesPath = path.join(__dirname, 'instagram_cookies.json');
-    const hasEnvSession = !!process.env.INSTAGRAM_SESSION_ID;
-    const hasFileSession = fs.existsSync(cookiesPath);
-    const isLoggedIn = hasEnvSession || hasFileSession;
+    const dataDir = process.env.DATA_DIR || __dirname;
+    const cookiesPath = path.join(dataDir, 'instagram_cookies.json');
+    const isLoggedIn = fs.existsSync(cookiesPath);
 
     return res.json({
         loggedIn: isLoggedIn,
-        source: hasEnvSession ? 'env' : (hasFileSession ? 'file' : 'none'),
         message: isLoggedIn ? '로그인 상태입니다' : '로그인이 필요합니다'
     });
 });
@@ -181,7 +183,11 @@ app.post('/api/instagram/login', async (req, res) => {
                 loggedIn = true;
 
                 // 쿠키 저장
-                const cookiesPath = path.join(__dirname, 'instagram_cookies.json');
+                const dataDir = process.env.DATA_DIR || __dirname;
+                if (!fs.existsSync(dataDir)) {
+                    fs.mkdirSync(dataDir, { recursive: true });
+                }
+                const cookiesPath = path.join(dataDir, 'instagram_cookies.json');
                 const cookieData = [
                     {
                         name: 'sessionid',
@@ -203,7 +209,11 @@ app.post('/api/instagram/login', async (req, res) => {
                 const sessionCookie2 = cookies2.find(c => c.name === 'sessionid');
                 if (sessionCookie2 && sessionCookie2.value) {
                     loggedIn = true;
-                    const cookiesPath = path.join(__dirname, 'instagram_cookies.json');
+                    const dataDir2 = process.env.DATA_DIR || __dirname;
+                    if (!fs.existsSync(dataDir2)) {
+                        fs.mkdirSync(dataDir2, { recursive: true });
+                    }
+                    const cookiesPath = path.join(dataDir2, 'instagram_cookies.json');
                     const cookieData = [
                         {
                             name: 'sessionid',
