@@ -1210,9 +1210,29 @@
             }
         }
 
+        // 브라우저 로그인 가능 여부 체크
+        async function checkBrowserLoginAvailable() {
+            try {
+                const response = await fetch('/api/instagram/browser-available');
+                const data = await response.json();
+                if (!data.available) {
+                    // 브라우저 로그인 불가 시 탭 숨기고 쿠키 입력만 표시
+                    document.getElementById('tabLogin').style.display = 'none';
+                    document.getElementById('authLogin').style.display = 'none';
+                    document.getElementById('tabCookie').classList.add('active');
+                    document.getElementById('authCookie').style.display = 'block';
+                    // 탭 영역 자체를 숨김
+                    document.querySelector('.auth-tabs').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('브라우저 로그인 체크 실패:', error);
+            }
+        }
+
         // 페이지 로드 시 실행
         document.addEventListener('DOMContentLoaded', () => {
             checkTranscribeStatus();
+            checkBrowserLoginAvailable();
         });
 
         // 탭 전환

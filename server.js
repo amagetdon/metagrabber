@@ -159,8 +159,22 @@ app.get('/api/instagram/status', async (req, res) => {
     });
 });
 
+// 브라우저 로그인 가능 여부 (Railway 등 headless 환경 체크)
+const isBrowserLoginAvailable = !process.env.RAILWAY_ENVIRONMENT && !process.env.RENDER;
+
+app.get('/api/instagram/browser-available', (req, res) => {
+    return res.json({ available: isBrowserLoginAvailable });
+});
+
 // Instagram 브라우저 로그인
 app.post('/api/instagram/login', async (req, res) => {
+    // Railway/Render 환경에서는 브라우저 로그인 불가
+    if (!isBrowserLoginAvailable) {
+        return res.status(400).json({
+            error: '서버 환경에서는 브라우저 로그인을 사용할 수 없습니다. 쿠키 직접 입력을 사용해주세요.'
+        });
+    }
+
     let browser = null;
 
     try {
