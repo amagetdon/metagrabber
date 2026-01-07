@@ -5,7 +5,9 @@ RUN apt-get update && apt-get install -y \
     chromium \
     ffmpeg \
     fonts-noto-cjk \
+    python3 \
     --no-install-recommends \
+    && ln -s /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
 # Puppeteer 환경변수
