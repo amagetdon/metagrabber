@@ -359,6 +359,26 @@
             transform: none;
         }
 
+        #transcribeLang {
+            transition: all 0.2s;
+        }
+
+        #transcribeLang:hover {
+            border-color: rgba(139, 92, 246, 0.5);
+            background: rgba(139, 92, 246, 0.15);
+        }
+
+        #transcribeLang:focus {
+            border-color: rgba(139, 92, 246, 0.6);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        #transcribeLang option {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 8px;
+        }
+
         .transcribe-section {
             margin-top: 20px;
             background: rgba(139, 92, 246, 0.08);
@@ -950,21 +970,16 @@
 
         <!-- 교정 전/후 비교 모달 -->
         <div class="modal" id="diffModal" style="display: none;">
-            <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="margin: 0;">교정 전/후 비교</h3>
+            <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">교정 내용</h3>
                     <button onclick="closeDiffModal()" style="background: none; border: none; color: rgba(255,255,255,0.5); font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
                 </div>
-                <div style="display: flex; gap: 16px; flex: 1; overflow: hidden;">
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <h4 style="color: #f87171; font-size: 0.85rem; margin-bottom: 8px;">교정 전</h4>
-                        <div id="diffBefore" style="flex: 1; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; font-size: 0.85rem; line-height: 1.7; color: rgba(255,255,255,0.7); overflow-y: auto; white-space: pre-wrap; max-height: 400px;"></div>
-                    </div>
-                    <div style="flex: 1; display: flex; flex-direction: column;">
-                        <h4 style="color: #6ee7b7; font-size: 0.85rem; margin-bottom: 8px;">교정 후</h4>
-                        <div id="diffAfter" style="flex: 1; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 16px; font-size: 0.85rem; line-height: 1.7; color: rgba(255,255,255,0.9); overflow-y: auto; white-space: pre-wrap; max-height: 400px;"></div>
-                    </div>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; font-size: 0.8rem;">
+                    <span><span style="color: #f87171; text-decoration: line-through;">삭제</span></span>
+                    <span><span style="color: #6ee7b7;">추가</span></span>
                 </div>
+                <div id="diffContent" style="flex: 1; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px; font-size: 0.9rem; line-height: 2; color: rgba(255,255,255,0.9); overflow-y: auto; max-height: 500px;"></div>
             </div>
         </div>
 
@@ -1019,12 +1034,22 @@
                     </svg>
                     URL 복사
                 </button>
-                <button class="btn-transcribe" id="btnTranscribe" onclick="transcribeVideo()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                    </svg>
-                    음성 전사
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn-transcribe" id="btnTranscribe" onclick="transcribeVideo()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                        </svg>
+                        음성 전사
+                    </button>
+                    <select id="transcribeLang" style="padding: 12px 16px; font-size: 0.85rem; font-family: inherit; border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; background: rgba(139,92,246,0.1); color: #a78bfa; outline: none; cursor: pointer;">
+                        <option value="">자동</option>
+                        <option value="ko">한국어</option>
+                        <option value="en">English</option>
+                        <option value="ja">日本語</option>
+                        <option value="zh">中文</option>
+                        <option value="es">Español</option>
+                    </select>
+                </div>
             </div>
 
             <!-- 전사 결과 -->
@@ -1032,6 +1057,8 @@
                 <div class="transcribe-header">
                     <h4>음성 전사 결과</h4>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn-copy-small" id="btnSummarize" onclick="summarizeTranscript()" style="background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(217,119,6,0.2)); border-color: rgba(245,158,11,0.3); color: #fbbf24;">요약</button>
+                        <button class="btn-copy-small" id="btnTranslate" onclick="translateTranscript()" style="background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.2)); border-color: rgba(59,130,246,0.3); color: #60a5fa;">번역</button>
                         <button class="btn-copy-small" id="btnCorrect" onclick="correctTranscript()" style="background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.2)); border-color: rgba(139,92,246,0.3); color: #a78bfa;">GPT 교정</button>
                         <button class="btn-copy-small" onclick="copyTranscript()">복사</button>
                     </div>
@@ -1556,12 +1583,15 @@
                 // 제목을 prompt 힌트로 전달 (발음 인식 정확도 향상)
                 const prompt = currentVideoData.title || '';
 
+                // 선택된 언어 가져오기
+                const selectedLang = document.getElementById('transcribeLang').value;
+
                 const response = await fetch('/api/transcribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         videoUrl: currentVideoData.video_url,
-                        language: 'ko',
+                        language: selectedLang,  // 빈 문자열이면 자동 감지
                         prompt: prompt
                     })
                 });
@@ -1607,6 +1637,154 @@
                 document.body.removeChild(textArea);
                 showSuccess('전사 내용이 복사되었습니다.');
             }
+        }
+
+        // GPT 요약 기능
+        let beforeSummary = '';  // 요약 전 원본 저장
+        let isTranscriptSummarized = false;
+
+        async function summarizeTranscript() {
+            const btn = document.getElementById('btnSummarize');
+
+            // 이미 요약된 상태면 요약 전/후 비교 모달 표시
+            if (isTranscriptSummarized) {
+                showSummaryDiffModal();
+                return;
+            }
+
+            if (!currentTranscript) {
+                showError('요약할 내용이 없습니다.');
+                return;
+            }
+
+            // 짧은 글은 요약 불필요 안내 (1000byte 미만)
+            if (new TextEncoder().encode(currentTranscript).length < 1000) {
+                showError('이 정도 길이는 직접 읽어보시는 게 좋을 것 같습니다 😊');
+                return;
+            }
+
+            const content = document.getElementById('transcribeContent');
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></div>';
+
+            try {
+                // 원본 저장
+                beforeSummary = currentTranscript;
+
+                const response = await fetch('/api/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: currentTranscript })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    currentTranscript = data.summarized;
+                    content.textContent = data.summarized;
+                    isTranscriptSummarized = true;
+
+                    // 버튼 텍스트 변경
+                    btn.innerHTML = '요약 전/후';
+                    btn.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.2))';
+                    btn.style.borderColor = 'rgba(16,185,129,0.3)';
+                    btn.style.color = '#6ee7b7';
+
+                    showSuccess('요약 완료! 버튼을 눌러 비교해보세요.');
+                } else {
+                    showError(data.error || '요약 실패');
+                    btn.innerHTML = '요약';
+                }
+            } catch (error) {
+                showError('요약 중 오류가 발생했습니다.');
+                console.error(error);
+                btn.innerHTML = '요약';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function showSummaryDiffModal() {
+            const diffContent = document.getElementById('diffContent');
+            // 요약은 완전히 다른 텍스트이므로 전/후 나란히 표시
+            diffContent.innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-bottom: 8px;">원본:</div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-size: 0.85rem; line-height: 1.8; max-height: 200px; overflow-y: auto;">${escapeHtml(beforeSummary)}</div>
+                </div>
+                <div>
+                    <div style="color: rgba(110,231,183,0.8); font-size: 0.8rem; margin-bottom: 8px;">요약:</div>
+                    <div style="background: rgba(110,231,183,0.1); padding: 12px; border-radius: 8px; font-size: 0.85rem; line-height: 1.8; border: 1px solid rgba(110,231,183,0.2);">${escapeHtml(currentTranscript)}</div>
+                </div>
+            `;
+            document.getElementById('diffModal').style.display = 'flex';
+        }
+
+        // GPT 번역 기능
+        let beforeTranslation = '';  // 번역 전 원본 저장
+        let isTranscriptTranslated = false;
+
+        async function translateTranscript() {
+            const btn = document.getElementById('btnTranslate');
+
+            // 이미 번역된 상태면 번역 전/후 비교 모달 표시
+            if (isTranscriptTranslated) {
+                showTranslateDiffModal();
+                return;
+            }
+
+            if (!currentTranscript) {
+                showError('번역할 내용이 없습니다.');
+                return;
+            }
+
+            const content = document.getElementById('transcribeContent');
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></div>';
+
+            try {
+                // 원본 저장
+                beforeTranslation = currentTranscript;
+
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: currentTranscript })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    currentTranscript = data.translated;
+                    content.textContent = data.translated;
+                    isTranscriptTranslated = true;
+
+                    // 버튼 텍스트 변경
+                    btn.innerHTML = '번역 전/후';
+                    btn.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.2))';
+                    btn.style.borderColor = 'rgba(16,185,129,0.3)';
+                    btn.style.color = '#6ee7b7';
+
+                    showSuccess('번역 완료! 버튼을 눌러 비교해보세요.');
+                } else {
+                    showError(data.error || '번역 실패');
+                    btn.innerHTML = '번역';
+                }
+            } catch (error) {
+                showError('번역 중 오류가 발생했습니다.');
+                console.error(error);
+                btn.innerHTML = '번역';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function showTranslateDiffModal() {
+            const diffContent = document.getElementById('diffContent');
+            diffContent.innerHTML = computeInlineDiff(beforeTranslation, currentTranscript);
+            document.getElementById('diffModal').style.display = 'flex';
         }
 
         // GPT 교정 기능
@@ -1670,8 +1848,8 @@
         }
 
         function showDiffModal() {
-            document.getElementById('diffBefore').textContent = originalTranscript;
-            document.getElementById('diffAfter').textContent = currentTranscript;
+            const diffContent = document.getElementById('diffContent');
+            diffContent.innerHTML = computeInlineDiff(originalTranscript, currentTranscript);
             document.getElementById('diffModal').style.display = 'flex';
         }
 
@@ -1679,16 +1857,159 @@
             document.getElementById('diffModal').style.display = 'none';
         }
 
-        // 교정 상태 초기화 (새 비디오 추출 시)
+        // 인라인 diff 계산 (단어 단위, 삭제/추가 모두 본문에 표시)
+        function computeInlineDiff(oldText, newText) {
+            // 단어와 공백을 분리해서 추출
+            const tokenize = (text) => text.split(/(\s+)/).filter(t => t);
+            const oldTokens = tokenize(oldText);
+            const newTokens = tokenize(newText);
+
+            // 단어만 추출 (비교용)
+            const getWord = (token) => token.replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+            // LCS 계산
+            const oldWords = oldTokens.map(getWord).filter(w => w);
+            const newWords = newTokens.map(getWord).filter(w => w);
+            const lcs = computeLCS(oldWords, newWords);
+
+            // diff 결과 생성
+            let result = '';
+            let oldIdx = 0;
+            let newIdx = 0;
+            let lcsIdx = 0;
+
+            // oldTokens에서 단어 인덱스 매핑
+            const oldWordIndices = [];
+            oldTokens.forEach((token, idx) => {
+                if (getWord(token)) oldWordIndices.push(idx);
+            });
+
+            // newTokens에서 단어 인덱스 매핑
+            const newWordIndices = [];
+            newTokens.forEach((token, idx) => {
+                if (getWord(token)) newWordIndices.push(idx);
+            });
+
+            let oldWordIdx = 0;
+            let newWordIdx = 0;
+
+            while (oldWordIdx < oldWords.length || newWordIdx < newWords.length) {
+                if (lcsIdx < lcs.length) {
+                    // 삭제된 단어들 (old에서 lcs까지)
+                    while (oldWordIdx < oldWords.length && oldWords[oldWordIdx] !== lcs[lcsIdx]) {
+                        const token = oldTokens[oldWordIndices[oldWordIdx]];
+                        result += `<span style="color: #f87171; text-decoration: line-through; background: rgba(248,113,113,0.15); padding: 1px 3px; border-radius: 3px;">${escapeHtml(token)}</span> `;
+                        oldWordIdx++;
+                    }
+
+                    // 추가된 단어들 (new에서 lcs까지)
+                    while (newWordIdx < newWords.length && newWords[newWordIdx] !== lcs[lcsIdx]) {
+                        const token = newTokens[newWordIndices[newWordIdx]];
+                        result += `<span style="color: #6ee7b7; background: rgba(110,231,183,0.15); padding: 1px 3px; border-radius: 3px;">${escapeHtml(token)}</span> `;
+                        newWordIdx++;
+                    }
+
+                    // 공통 단어
+                    if (oldWordIdx < oldWords.length && newWordIdx < newWords.length) {
+                        const token = newTokens[newWordIndices[newWordIdx]];
+                        result += escapeHtml(token) + ' ';
+                        oldWordIdx++;
+                        newWordIdx++;
+                        lcsIdx++;
+                    }
+                } else {
+                    // LCS 끝난 후 남은 삭제 단어
+                    while (oldWordIdx < oldWords.length) {
+                        const token = oldTokens[oldWordIndices[oldWordIdx]];
+                        result += `<span style="color: #f87171; text-decoration: line-through; background: rgba(248,113,113,0.15); padding: 1px 3px; border-radius: 3px;">${escapeHtml(token)}</span> `;
+                        oldWordIdx++;
+                    }
+
+                    // LCS 끝난 후 남은 추가 단어
+                    while (newWordIdx < newWords.length) {
+                        const token = newTokens[newWordIndices[newWordIdx]];
+                        result += `<span style="color: #6ee7b7; background: rgba(110,231,183,0.15); padding: 1px 3px; border-radius: 3px;">${escapeHtml(token)}</span> `;
+                        newWordIdx++;
+                    }
+                }
+            }
+
+            return result || escapeHtml(newText);
+        }
+
+        // LCS 계산
+        function computeLCS(arr1, arr2) {
+            const m = arr1.length;
+            const n = arr2.length;
+            const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (arr1[i - 1] === arr2[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+
+            // LCS 역추적
+            const lcs = [];
+            let i = m, j = n;
+            while (i > 0 && j > 0) {
+                if (arr1[i - 1] === arr2[j - 1]) {
+                    lcs.unshift(arr1[i - 1]);
+                    i--;
+                    j--;
+                } else if (dp[i - 1][j] > dp[i][j - 1]) {
+                    i--;
+                } else {
+                    j--;
+                }
+            }
+
+            return lcs;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 교정/번역/요약 상태 초기화 (새 비디오 추출 시)
         function resetCorrectionState() {
+            // 교정 상태 초기화
             originalTranscript = '';
             isTranscriptCorrected = false;
-            const btn = document.getElementById('btnCorrect');
-            if (btn) {
-                btn.innerHTML = 'GPT 교정';
-                btn.style.background = 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.2))';
-                btn.style.borderColor = 'rgba(139,92,246,0.3)';
-                btn.style.color = '#a78bfa';
+            const btnCorrect = document.getElementById('btnCorrect');
+            if (btnCorrect) {
+                btnCorrect.innerHTML = 'GPT 교정';
+                btnCorrect.style.background = 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.2))';
+                btnCorrect.style.borderColor = 'rgba(139,92,246,0.3)';
+                btnCorrect.style.color = '#a78bfa';
+            }
+
+            // 번역 상태 초기화
+            beforeTranslation = '';
+            isTranscriptTranslated = false;
+            const btnTranslate = document.getElementById('btnTranslate');
+            if (btnTranslate) {
+                btnTranslate.innerHTML = '번역';
+                btnTranslate.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.2))';
+                btnTranslate.style.borderColor = 'rgba(59,130,246,0.3)';
+                btnTranslate.style.color = '#60a5fa';
+            }
+
+            // 요약 상태 초기화
+            beforeSummary = '';
+            isTranscriptSummarized = false;
+            const btnSummarize = document.getElementById('btnSummarize');
+            if (btnSummarize) {
+                btnSummarize.innerHTML = '요약';
+                btnSummarize.style.background = 'linear-gradient(135deg, rgba(245,158,11,0.2), rgba(217,119,6,0.2))';
+                btnSummarize.style.borderColor = 'rgba(245,158,11,0.3)';
+                btnSummarize.style.color = '#fbbf24';
             }
         }
 

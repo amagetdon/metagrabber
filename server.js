@@ -435,6 +435,133 @@ app.post('/api/correct', async (req, res) => {
     }
 });
 
+// GPT 요약 API
+app.post('/api/summarize', async (req, res) => {
+    const { text } = req.body;
+
+    if (!text) {
+        return res.status(400).json({ error: '요약할 텍스트가 필요합니다' });
+    }
+
+    if (apiKeyPool.getKeyCount() === 0) {
+        return res.status(400).json({ error: 'API 키가 등록되지 않았습니다' });
+    }
+
+    const apiKey = apiKeyPool.getAvailableKey();
+    if (!apiKey) {
+        return res.status(400).json({ error: '사용 가능한 API 키가 없습니다' });
+    }
+
+    apiKeyPool.markInUse(apiKey);
+
+    try {
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        console.log('[Server] GPT 요약 시작...');
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: `당신은 영상 콘텐츠 요약 전문가입니다. 주어진 음성 전사 텍스트를 적절한 길이로 요약해주세요.
+
+## 요약 형식:
+1. **핵심 주제** (1-2문장)
+2. **주요 내용** (5-7개 bullet point)
+3. **핵심 키워드** (중요한 이름, 수치, 용어)
+
+## 요약 규칙:
+- 원본 길이의 20-30% 정도로 요약
+- 핵심 내용 위주로 정리
+- 구체적인 수치, 이름, 브랜드명 포함
+- 요약 결과만 출력 (설명 없이)`
+                },
+                {
+                    role: 'user',
+                    content: text
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 2000
+        });
+
+        apiKeyPool.markAvailable(apiKey);
+
+        const summarized = response.choices[0]?.message?.content || text;
+        console.log('[Server] GPT 요약 완료');
+
+        return res.json({ success: true, summarized });
+    } catch (error) {
+        apiKeyPool.markAvailable(apiKey);
+        console.error('[Server] GPT 요약 에러:', error.message);
+        return res.status(500).json({ error: `요약 실패: ${error.message}` });
+    }
+});
+
+// GPT 번역 API
+app.post('/api/translate', async (req, res) => {
+    const { text } = req.body;
+
+    if (!text) {
+        return res.status(400).json({ error: '번역할 텍스트가 필요합니다' });
+    }
+
+    if (apiKeyPool.getKeyCount() === 0) {
+        return res.status(400).json({ error: 'API 키가 등록되지 않았습니다' });
+    }
+
+    const apiKey = apiKeyPool.getAvailableKey();
+    if (!apiKey) {
+        return res.status(400).json({ error: '사용 가능한 API 키가 없습니다' });
+    }
+
+    apiKeyPool.markInUse(apiKey);
+
+    try {
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        console.log('[Server] GPT 번역 시작...');
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: `당신은 전문 번역가입니다. 주어진 텍스트를 자연스러운 한국어로 번역해주세요.
+
+## 번역 규칙:
+1. 원문의 의미와 뉘앙스를 최대한 살려 번역
+2. 자연스러운 한국어 표현 사용
+3. 고유명사, 브랜드명은 원어 유지 또는 널리 쓰이는 한국어 표기 사용
+4. 구어체는 구어체로, 문어체는 문어체로 유지
+5. 번역된 텍스트만 출력 (설명 없이)
+6. 이미 한국어인 경우 맞춤법만 교정하여 그대로 출력`
+                },
+                {
+                    role: 'user',
+                    content: text
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 4000
+        });
+
+        apiKeyPool.markAvailable(apiKey);
+
+        const translated = response.choices[0]?.message?.content || text;
+        console.log('[Server] GPT 번역 완료');
+
+        return res.json({ success: true, translated });
+    } catch (error) {
+        apiKeyPool.markAvailable(apiKey);
+        console.error('[Server] GPT 번역 에러:', error.message);
+        return res.status(500).json({ error: `번역 실패: ${error.message}` });
+    }
+});
+
 // API 키 상태 확인
 app.get('/api/transcribe/status', (req, res) => {
     const status = apiKeyPool.getStatus();
