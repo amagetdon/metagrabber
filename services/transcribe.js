@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { spawn } = require('child_process');
+const { v4: uuidv4 } = require('uuid');
+const apiKeyPool = require('./apiKeyPool');
 
 // Docker 환경에서는 시스템 ffmpeg 사용, 로컬에서는 ffmpeg-static 사용
 const getFFmpegPath = () => {
@@ -16,8 +18,7 @@ const getFFmpegPath = () => {
 const ffmpegPath = getFFmpegPath();
 
 class TranscribeService {
-    constructor(apiKey) {
-        this.openai = new OpenAI({ apiKey });
+    constructor() {
         this.tempDir = path.join(__dirname, '..', 'temp');
 
         if (!fs.existsSync(this.tempDir)) {
@@ -26,9 +27,10 @@ class TranscribeService {
     }
 
     async transcribe(videoUrl, language = 'ko') {
-        const timestamp = Date.now();
-        const videoPath = path.join(this.tempDir, `video_${timestamp}.mp4`);
-        const audioPath = path.join(this.tempDir, `audio_${timestamp}.mp3`);
+        // UUID로 파일명 생성 (동시 요청 충돌 방지)
+        const fileId = uuidv4();
+        const videoPath = path.join(this.tempDir, `video_${fileId}.mp4`);
+        const audioPath = path.join(this.tempDir, `audio_${fileId}.mp3`);
 
         try {
             // HLS 스트림(m3u8)인 경우 ffmpeg로 직접 처리
@@ -45,8 +47,9 @@ class TranscribeService {
                 await this.extractAudio(videoPath, audioPath);
             }
 
+            // API 키 풀에서 재시도 로직으로 Whisper 호출
             console.log('[Transcribe] Whisper API 호출 중...');
-            const transcription = await this.callWhisperAPI(audioPath, language);
+            const transcription = await this.callWhisperWithRetry(audioPath, language);
 
             return {
                 success: true,
@@ -64,6 +67,60 @@ class TranscribeService {
             }
             this.cleanupFile(audioPath);
         }
+    }
+
+    async callWhisperWithRetry(audioPath, language, maxRetries = 3) {
+        const triedKeys = new Set();
+        let lastError = null;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            const apiKey = apiKeyPool.getAvailableKey();
+
+            if (!apiKey) {
+                throw new Error('사용 가능한 API 키가 없습니다. API 키를 등록해주세요.');
+            }
+
+            // 이미 시도한 키는 스킵 (다른 키가 있는 경우에만)
+            if (triedKeys.has(apiKey) && triedKeys.size < apiKeyPool.getKeyCount()) {
+                continue;
+            }
+
+            triedKeys.add(apiKey);
+            apiKeyPool.markInUse(apiKey);
+
+            try {
+                console.log(`[Transcribe] API 키 시도 ${attempt + 1}/${maxRetries} (${apiKey.substring(0, 7)}...)`);
+
+                const openai = new OpenAI({ apiKey });
+                const audioFile = fs.createReadStream(audioPath);
+
+                const response = await openai.audio.transcriptions.create({
+                    file: audioFile,
+                    model: 'whisper-1',
+                    language: language,
+                    response_format: 'json'
+                });
+
+                apiKeyPool.markAvailable(apiKey);
+                console.log(`[Transcribe] API 호출 성공`);
+                return response;
+
+            } catch (error) {
+                apiKeyPool.markAvailable(apiKey);
+                lastError = error;
+
+                // Rate limit 또는 일시적 오류면 다음 키로 재시도
+                if (error.status === 429 || error.status === 500 || error.status === 503) {
+                    console.log(`[Transcribe] API 키 ${apiKey.substring(0, 7)}... 실패 (${error.status}), 다음 키로 재시도...`);
+                    continue;
+                }
+
+                // 인증 오류 등은 바로 throw
+                throw error;
+            }
+        }
+
+        throw lastError || new Error('모든 API 키로 시도 실패');
     }
 
     async downloadFile(url, filePath) {
@@ -165,19 +222,6 @@ class TranscribeService {
                 reject(new Error(`ffmpeg 실행 실패: ${err.message}. ffmpeg가 설치되어 있는지 확인하세요.`));
             });
         });
-    }
-
-    async callWhisperAPI(audioPath, language) {
-        const audioFile = fs.createReadStream(audioPath);
-
-        const response = await this.openai.audio.transcriptions.create({
-            file: audioFile,
-            model: 'whisper-1',
-            language: language,
-            response_format: 'json'
-        });
-
-        return response;
     }
 
     cleanupFile(filePath) {

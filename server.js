@@ -11,6 +11,7 @@ const InstagramDownloader = require('./downloaders/instagram');
 const YouTubeDownloader = require('./downloaders/youtube');
 const GoogleAdsDownloader = require('./downloaders/googleads');
 const TranscribeService = require('./services/transcribe');
+const apiKeyPool = require('./services/apiKeyPool');
 const supabase = require('./services/supabase');
 
 const app = express();
@@ -290,26 +291,19 @@ app.get('/api/proxy-download', async (req, res) => {
     }
 });
 
-// OpenAI API 키 설정
-let transcribeService = null;
+// OpenAI API 키 풀 및 전사 서비스 초기화
+const transcribeService = new TranscribeService();
 
-async function initTranscribeService() {
-    // Supabase에서 API 키 로드
-    if (supabase.enabled) {
-        const apiKey = await supabase.getSession('openai_api_key');
-        if (apiKey) {
-            transcribeService = new TranscribeService(apiKey);
-            console.log('[Server] OpenAI Whisper 활성화됨 (Supabase)');
-            return;
-        }
-    }
-    // 환경변수에서 로드 (로컬 개발용)
-    if (process.env.OPENAI_API_KEY) {
-        transcribeService = new TranscribeService(process.env.OPENAI_API_KEY);
-        console.log('[Server] OpenAI Whisper 활성화됨 (환경변수)');
+async function initAPIKeyPool() {
+    await apiKeyPool.loadKeys();
+    const count = apiKeyPool.getKeyCount();
+    if (count > 0) {
+        console.log(`[Server] OpenAI Whisper 활성화됨 (${count}개의 API 키)`);
+    } else {
+        console.log('[Server] OpenAI API 키가 없습니다. 웹에서 등록하세요.');
     }
 }
-initTranscribeService();
+initAPIKeyPool();
 
 // 음성 전사 API
 app.post('/api/transcribe', async (req, res) => {
@@ -319,14 +313,15 @@ app.post('/api/transcribe', async (req, res) => {
         return res.status(400).json({ error: '비디오 URL이 필요합니다' });
     }
 
-    if (!transcribeService) {
+    if (apiKeyPool.getKeyCount() === 0) {
         return res.status(400).json({
-            error: 'OpenAI API 키가 설정되지 않았습니다. 환경변수 OPENAI_API_KEY를 설정하세요.'
+            error: 'OpenAI API 키가 등록되지 않았습니다. API 키를 추가해주세요.'
         });
     }
 
     try {
         console.log('[Server] 전사 시작:', videoUrl.substring(0, 50) + '...');
+        console.log('[Server] API 키 풀 상태:', apiKeyPool.getStatus());
         const result = await transcribeService.transcribe(videoUrl, language);
         return res.json(result);
     } catch (error) {
@@ -337,13 +332,18 @@ app.post('/api/transcribe', async (req, res) => {
 
 // API 키 상태 확인
 app.get('/api/transcribe/status', (req, res) => {
+    const status = apiKeyPool.getStatus();
     return res.json({
-        available: !!transcribeService,
-        message: transcribeService ? '전사 기능 사용 가능' : 'OpenAI API 키를 설정하세요'
+        available: status.total > 0,
+        keyCount: status.total,
+        inUse: status.inUse,
+        message: status.total > 0
+            ? `전사 기능 사용 가능 (API 키 ${status.total}개)`
+            : 'OpenAI API 키를 등록하세요'
     });
 });
 
-// OpenAI API 키 저장
+// OpenAI API 키 추가
 app.post('/api/openai/key', async (req, res) => {
     const { apiKey } = req.body;
 
@@ -352,24 +352,47 @@ app.post('/api/openai/key', async (req, res) => {
     }
 
     try {
-        // Supabase에 저장
-        if (supabase.enabled) {
-            await supabase.setSession('openai_api_key', apiKey.trim());
-        }
-
-        // 서비스 재초기화
-        transcribeService = new TranscribeService(apiKey.trim());
-
-        console.log('[Server] OpenAI API 키 저장 완료');
-        return res.json({ success: true, message: 'API 키가 저장되었습니다!' });
+        const count = await apiKeyPool.addKey(apiKey);
+        console.log(`[Server] OpenAI API 키 추가됨 (총 ${count}개)`);
+        return res.json({
+            success: true,
+            message: `API 키가 추가되었습니다! (총 ${count}개)`,
+            keyCount: count
+        });
     } catch (error) {
-        console.error('API 키 저장 에러:', error);
-        return res.status(500).json({ error: 'API 키 저장 실패' });
+        console.error('API 키 추가 에러:', error.message);
+        return res.status(400).json({ error: error.message });
+    }
+});
+
+// API 키 목록 조회
+app.get('/api/openai/keys', (req, res) => {
+    return res.json({
+        keys: apiKeyPool.getMaskedKeys(),
+        status: apiKeyPool.getStatus()
+    });
+});
+
+// API 키 삭제
+app.delete('/api/openai/key/:index', async (req, res) => {
+    const index = parseInt(req.params.index);
+
+    try {
+        const count = await apiKeyPool.removeKey(index);
+        console.log(`[Server] OpenAI API 키 삭제됨 (남은 ${count}개)`);
+        return res.json({
+            success: true,
+            message: `API 키가 삭제되었습니다. (남은 ${count}개)`,
+            keyCount: count
+        });
+    } catch (error) {
+        console.error('API 키 삭제 에러:', error.message);
+        return res.status(400).json({ error: error.message });
     }
 });
 
 // 서버 시작
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log('='.repeat(50));
     console.log('MetaGrabber - Video Downloader');
     console.log('='.repeat(50));
@@ -381,7 +404,8 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('  - Google Ads Transparency');
     console.log('\n기능:');
     console.log('  - 비디오 다운로드');
-    console.log(`  - 음성 전사: ${transcribeService ? '활성화' : '비활성화 (OPENAI_API_KEY 필요)'}`);
+    const keyCount = apiKeyPool.getKeyCount();
+    console.log(`  - 음성 전사: ${keyCount > 0 ? `활성화 (API 키 ${keyCount}개)` : '비활성화 (API 키 필요)'}`);
     console.log('\n종료: Ctrl+C');
     console.log('='.repeat(50));
 });
