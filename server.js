@@ -122,10 +122,13 @@ app.post('/api/instagram/cookie', (req, res) => {
 // Instagram 로그인 상태 확인
 app.get('/api/instagram/status', (req, res) => {
     const cookiesPath = path.join(__dirname, 'instagram_cookies.json');
-    const isLoggedIn = fs.existsSync(cookiesPath);
+    const hasEnvSession = !!process.env.INSTAGRAM_SESSION_ID;
+    const hasFileSession = fs.existsSync(cookiesPath);
+    const isLoggedIn = hasEnvSession || hasFileSession;
 
     return res.json({
         loggedIn: isLoggedIn,
+        source: hasEnvSession ? 'env' : (hasFileSession ? 'file' : 'none'),
         message: isLoggedIn ? '로그인 상태입니다' : '로그인이 필요합니다'
     });
 });

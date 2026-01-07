@@ -13,6 +13,18 @@ class InstagramDownloader {
     }
 
     loadSessionId() {
+        // 1. 환경변수에서 먼저 확인 (Railway 배포용)
+        if (process.env.INSTAGRAM_SESSION_ID) {
+            console.log('[Instagram] 환경변수에서 sessionid 로드');
+            const envSession = process.env.INSTAGRAM_SESSION_ID.trim();
+            try {
+                return decodeURIComponent(envSession);
+            } catch {
+                return envSession;
+            }
+        }
+
+        // 2. 파일에서 확인 (로컬 개발용)
         try {
             if (fs.existsSync(this.cookiesPath)) {
                 const data = JSON.parse(fs.readFileSync(this.cookiesPath, 'utf8'));
