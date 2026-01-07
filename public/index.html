@@ -735,6 +735,30 @@
             </div>
         </div>
 
+        <!-- OpenAI API 키 설정 배너 -->
+        <div class="auth-banner" id="openaiKeyBanner" style="display: none; border-color: rgba(139, 92, 246, 0.3); box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);">
+            <div class="auth-header" style="border-bottom-color: rgba(139, 92, 246, 0.2);">
+                <div class="auth-icon" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2));">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="#8b5cf6">
+                        <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                    </svg>
+                </div>
+                <div class="auth-title">
+                    <h3>음성 전사 설정</h3>
+                    <p>OpenAI API 키를 입력하면 음성 전사 기능을 사용할 수 있습니다</p>
+                </div>
+            </div>
+            <div class="auth-card" style="background: rgba(139, 92, 246, 0.1);">
+                <div class="cookie-input-group">
+                    <input type="password" id="openaiKeyInput" placeholder="sk-proj-... OpenAI API 키 입력" style="border-color: rgba(139, 92, 246, 0.3);">
+                    <button class="btn-auth-submit" onclick="saveOpenAIKey()" style="background: linear-gradient(90deg, #8b5cf6, #6366f1);">저장</button>
+                </div>
+                <p style="font-size: 0.85rem; color: #8892b0; margin-top: 12px;">
+                    <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #8b5cf6;">OpenAI 홈페이지</a>에서 API 키를 발급받을 수 있습니다.
+                </p>
+            </div>
+        </div>
+
         <!-- 쿠키 도움말 모달 -->
         <div class="modal" id="cookieHelpModal" style="display: none;">
             <div class="modal-content">
@@ -812,6 +836,78 @@
     <script>
         let currentVideoData = null;
         let lastFailedUrl = null;
+        let transcribeAvailable = false;
+
+        // 페이지 로드 시 전사 기능 상태 확인
+        async function checkTranscribeStatus() {
+            try {
+                const response = await fetch('/api/transcribe/status');
+                const data = await response.json();
+                transcribeAvailable = data.available;
+
+                // 전사 버튼 표시/숨김
+                const btnTranscribe = document.getElementById('btnTranscribe');
+                if (btnTranscribe) {
+                    btnTranscribe.style.display = transcribeAvailable ? 'flex' : 'none';
+                }
+            } catch (error) {
+                console.error('전사 상태 확인 실패:', error);
+            }
+        }
+
+        // OpenAI API 키 저장
+        async function saveOpenAIKey() {
+            const apiKey = document.getElementById('openaiKeyInput').value.trim();
+
+            if (!apiKey) {
+                showError('API 키를 입력해주세요.');
+                return;
+            }
+
+            if (!apiKey.startsWith('sk-')) {
+                showError('올바른 OpenAI API 키 형식이 아닙니다.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/openai/key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('API 키가 저장되었습니다!');
+                    document.getElementById('openaiKeyInput').value = '';
+                    document.getElementById('openaiKeyBanner').style.display = 'none';
+                    transcribeAvailable = true;
+
+                    // 전사 버튼 표시
+                    const btnTranscribe = document.getElementById('btnTranscribe');
+                    if (btnTranscribe) {
+                        btnTranscribe.style.display = 'flex';
+                    }
+                } else {
+                    showError(data.error || 'API 키 저장에 실패했습니다.');
+                }
+            } catch (error) {
+                showError('API 키 저장 중 오류가 발생했습니다.');
+                console.error(error);
+            }
+        }
+
+        // 전사 설정 배너 표시
+        function showOpenAIKeyBanner() {
+            document.getElementById('openaiKeyBanner').style.display = 'block';
+            document.getElementById('openaiKeyBanner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', () => {
+            checkTranscribeStatus();
+        });
 
         // 탭 전환
         function showAuthTab(tab) {
@@ -1036,6 +1132,13 @@
         async function transcribeVideo() {
             if (!currentVideoData?.video_url) {
                 showError('전사할 비디오가 없습니다.');
+                return;
+            }
+
+            // API 키 없으면 설정 배너 표시
+            if (!transcribeAvailable) {
+                showOpenAIKeyBanner();
+                showError('OpenAI API 키를 먼저 설정해주세요.');
                 return;
             }
 

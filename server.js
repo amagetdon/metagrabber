@@ -292,12 +292,24 @@ app.get('/api/proxy-download', async (req, res) => {
 
 // OpenAI API 키 설정
 let transcribeService = null;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
-if (OPENAI_API_KEY) {
-    transcribeService = new TranscribeService(OPENAI_API_KEY);
-    console.log('[Server] OpenAI Whisper 활성화됨');
+async function initTranscribeService() {
+    // Supabase에서 API 키 로드
+    if (supabase.enabled) {
+        const apiKey = await supabase.getSession('openai_api_key');
+        if (apiKey) {
+            transcribeService = new TranscribeService(apiKey);
+            console.log('[Server] OpenAI Whisper 활성화됨 (Supabase)');
+            return;
+        }
+    }
+    // 환경변수에서 로드 (로컬 개발용)
+    if (process.env.OPENAI_API_KEY) {
+        transcribeService = new TranscribeService(process.env.OPENAI_API_KEY);
+        console.log('[Server] OpenAI Whisper 활성화됨 (환경변수)');
+    }
 }
+initTranscribeService();
 
 // 음성 전사 API
 app.post('/api/transcribe', async (req, res) => {
@@ -327,8 +339,33 @@ app.post('/api/transcribe', async (req, res) => {
 app.get('/api/transcribe/status', (req, res) => {
     return res.json({
         available: !!transcribeService,
-        message: transcribeService ? '전사 기능 사용 가능' : 'OPENAI_API_KEY 환경변수를 설정하세요'
+        message: transcribeService ? '전사 기능 사용 가능' : 'OpenAI API 키를 설정하세요'
     });
+});
+
+// OpenAI API 키 저장
+app.post('/api/openai/key', async (req, res) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        return res.status(400).json({ error: 'API 키가 필요합니다' });
+    }
+
+    try {
+        // Supabase에 저장
+        if (supabase.enabled) {
+            await supabase.setSession('openai_api_key', apiKey.trim());
+        }
+
+        // 서비스 재초기화
+        transcribeService = new TranscribeService(apiKey.trim());
+
+        console.log('[Server] OpenAI API 키 저장 완료');
+        return res.json({ success: true, message: 'API 키가 저장되었습니다!' });
+    } catch (error) {
+        console.error('API 키 저장 에러:', error);
+        return res.status(500).json({ error: 'API 키 저장 실패' });
+    }
 });
 
 // 서버 시작
