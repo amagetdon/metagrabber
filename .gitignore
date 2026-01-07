@@ -1,5 +1,7 @@
 node_modules/
 instagram_cookies.json
 downloads/
+temp/
 *.log
 .DS_Store
+.env

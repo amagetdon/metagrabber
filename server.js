@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -9,9 +10,10 @@ const FacebookDownloader = require('./downloaders/facebook');
 const InstagramDownloader = require('./downloaders/instagram');
 const YouTubeDownloader = require('./downloaders/youtube');
 const GoogleAdsDownloader = require('./downloaders/googleads');
+const TranscribeService = require('./services/transcribe');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // 미들웨어
 app.use(cors());
@@ -137,10 +139,12 @@ app.post('/api/instagram/login', async (req, res) => {
 
         browser = await puppeteer.launch({
             headless: false,  // 브라우저 창 보이게
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
+                '--disable-gpu',
                 '--lang=ko-KR'
             ]
         });
@@ -257,6 +261,47 @@ app.get('/api/proxy-download', async (req, res) => {
     }
 });
 
+// OpenAI API 키 설정
+let transcribeService = null;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+
+if (OPENAI_API_KEY) {
+    transcribeService = new TranscribeService(OPENAI_API_KEY);
+    console.log('[Server] OpenAI Whisper 활성화됨');
+}
+
+// 음성 전사 API
+app.post('/api/transcribe', async (req, res) => {
+    const { videoUrl, language = 'ko' } = req.body;
+
+    if (!videoUrl) {
+        return res.status(400).json({ error: '비디오 URL이 필요합니다' });
+    }
+
+    if (!transcribeService) {
+        return res.status(400).json({
+            error: 'OpenAI API 키가 설정되지 않았습니다. 환경변수 OPENAI_API_KEY를 설정하세요.'
+        });
+    }
+
+    try {
+        console.log('[Server] 전사 시작:', videoUrl.substring(0, 50) + '...');
+        const result = await transcribeService.transcribe(videoUrl, language);
+        return res.json(result);
+    } catch (error) {
+        console.error('[Server] 전사 에러:', error.message);
+        return res.status(500).json({ error: `전사 실패: ${error.message}` });
+    }
+});
+
+// API 키 상태 확인
+app.get('/api/transcribe/status', (req, res) => {
+    return res.json({
+        available: !!transcribeService,
+        message: transcribeService ? '전사 기능 사용 가능' : 'OPENAI_API_KEY 환경변수를 설정하세요'
+    });
+});
+
 // 서버 시작
 app.listen(PORT, () => {
     console.log('='.repeat(50));
@@ -268,6 +313,9 @@ app.listen(PORT, () => {
     console.log('  - Instagram');
     console.log('  - Facebook Ads Library');
     console.log('  - Google Ads Transparency');
+    console.log('\n기능:');
+    console.log('  - 비디오 다운로드');
+    console.log(`  - 음성 전사: ${transcribeService ? '활성화' : '비활성화 (OPENAI_API_KEY 필요)'}`);
     console.log('\n종료: Ctrl+C');
     console.log('='.repeat(50));
 });

@@ -216,6 +216,83 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        .btn-transcribe {
+            background: linear-gradient(90deg, #8b5cf6, #6366f1);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-transcribe:hover {
+            background: linear-gradient(90deg, #7c3aed, #4f46e5);
+        }
+
+        .btn-transcribe:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .transcribe-section {
+            margin-top: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .transcribe-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .transcribe-header h4 {
+            color: #a78bfa;
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .btn-copy-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-copy-small:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .transcribe-content {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            color: #e2e8f0;
+            line-height: 1.8;
+            font-size: 0.95rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .transcribe-loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #a78bfa;
+        }
+
+        .transcribe-loading .spinner {
+            width: 20px;
+            height: 20px;
+            border-width: 2px;
+        }
+
         .loading {
             display: none;
             text-align: center;
@@ -709,6 +786,21 @@
                     </svg>
                     URL 복사
                 </button>
+                <button class="btn-transcribe" id="btnTranscribe" onclick="transcribeVideo()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                    </svg>
+                    음성 전사
+                </button>
+            </div>
+
+            <!-- 전사 결과 -->
+            <div class="transcribe-section" id="transcribeSection" style="display: none;">
+                <div class="transcribe-header">
+                    <h4>음성 전사 결과</h4>
+                    <button class="btn-copy-small" onclick="copyTranscript()">복사</button>
+                </div>
+                <div class="transcribe-content" id="transcribeContent"></div>
             </div>
         </section>
 
@@ -937,6 +1029,84 @@
         document.getElementById('urlInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') extractVideo();
         });
+
+        // 전사 기능
+        let currentTranscript = '';
+
+        async function transcribeVideo() {
+            if (!currentVideoData?.video_url) {
+                showError('전사할 비디오가 없습니다.');
+                return;
+            }
+
+            const btn = document.getElementById('btnTranscribe');
+            const section = document.getElementById('transcribeSection');
+            const content = document.getElementById('transcribeContent');
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div> 전사 중...';
+            section.style.display = 'block';
+            content.innerHTML = '<div class="transcribe-loading"><div class="spinner"></div> 음성을 텍스트로 변환하는 중... (1-2분 소요)</div>';
+
+            try {
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        videoUrl: currentVideoData.video_url,
+                        language: 'ko'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    currentTranscript = data.text;
+                    content.textContent = data.text;
+                    showSuccess('전사가 완료되었습니다.');
+                } else {
+                    content.innerHTML = `<span style="color: #f87171;">오류: ${data.error}</span>`;
+                    showError(data.error);
+                }
+            } catch (error) {
+                content.innerHTML = `<span style="color: #f87171;">전사 중 오류가 발생했습니다.</span>`;
+                showError('전사 중 오류가 발생했습니다.');
+                console.error(error);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                </svg> 음성 전사`;
+            }
+        }
+
+        async function copyTranscript() {
+            if (!currentTranscript) {
+                showError('복사할 내용이 없습니다.');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(currentTranscript);
+                showSuccess('전사 내용이 복사되었습니다.');
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = currentTranscript;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showSuccess('전사 내용이 복사되었습니다.');
+            }
+        }
+
+        // 비디오 추출 성공 시 전사 섹션 숨기기
+        const originalDisplayResult = displayResult;
+        displayResult = function(data) {
+            document.getElementById('transcribeSection').style.display = 'none';
+            currentTranscript = '';
+            originalDisplayResult(data);
+        };
     </script>
 </body>
 </html>
