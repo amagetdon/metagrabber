@@ -344,6 +344,8 @@
             background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
             color: #fff;
             box-shadow: 0 4px 16px -4px rgba(139, 92, 246, 0.5);
+            white-space: nowrap;
+            min-width: 130px;
         }
 
         .btn-transcribe:hover {
@@ -1362,7 +1364,7 @@
             const content = document.getElementById('transcribeContent');
 
             btn.disabled = true;
-            btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div> 전사 중...';
+            btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0;"></div> 전사 중...';
             section.style.display = 'block';
             content.innerHTML = '<div class="transcribe-loading"><div class="spinner"></div> 음성을 텍스트로 변환하는 중... (1-2분 소요)</div>';
 
