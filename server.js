@@ -39,6 +39,17 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// 비밀번호 인증
+const APP_PASSWORD = process.env.APP_PASSWORD || 'mincom0202';
+
+app.post('/api/auth', (req, res) => {
+    const { password } = req.body;
+    if (password === APP_PASSWORD) {
+        return res.json({ success: true });
+    }
+    return res.status(401).json({ error: '비밀번호가 틀렸습니다.' });
+});
+
 // 비디오 추출 API
 app.post('/api/extract', async (req, res) => {
     const { url } = req.body;
