@@ -71,13 +71,24 @@ class TranscribeService {
         response.data.pipe(writer);
 
         return new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
+            writer.on('finish', () => {
+                const stats = fs.statSync(filePath);
+                console.log(`[Transcribe] 다운로드 완료: ${stats.size} bytes`);
+                if (stats.size < 1000) {
+                    reject(new Error('다운로드된 파일이 너무 작습니다. 비디오 URL이 유효한지 확인하세요.'));
+                } else {
+                    resolve();
+                }
+            });
             writer.on('error', reject);
         });
     }
 
     async extractAudio(videoPath, audioPath) {
         return new Promise((resolve, reject) => {
+            console.log(`[Transcribe] ffmpeg 경로: ${ffmpegPath}`);
+            console.log(`[Transcribe] 입력 파일: ${videoPath}`);
+
             // ffmpeg를 사용해서 오디오 추출
             const ffmpeg = spawn(ffmpegPath, [
                 '-i', videoPath,
@@ -89,14 +100,17 @@ class TranscribeService {
                 audioPath
             ]);
 
+            let stderrData = '';
             ffmpeg.stderr.on('data', (data) => {
-                // ffmpeg 진행 상황 (무시)
+                stderrData += data.toString();
             });
 
             ffmpeg.on('close', (code) => {
                 if (code === 0) {
+                    console.log('[Transcribe] ffmpeg 성공');
                     resolve();
                 } else {
+                    console.error('[Transcribe] ffmpeg stderr:', stderrData.slice(-500));
                     reject(new Error(`ffmpeg 실패: exit code ${code}`));
                 }
             });
