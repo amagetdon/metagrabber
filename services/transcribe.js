@@ -3,7 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const { spawn } = require('child_process');
-const ffmpegPath = require('ffmpeg-static');
+
+// Docker 환경에서는 시스템 ffmpeg 사용, 로컬에서는 ffmpeg-static 사용
+const getFFmpegPath = () => {
+    // Docker/Linux 환경 체크
+    if (fs.existsSync('/usr/bin/ffmpeg')) {
+        return '/usr/bin/ffmpeg';
+    }
+    // 로컬 개발 환경 (ffmpeg-static)
+    return require('ffmpeg-static');
+};
+const ffmpegPath = getFFmpegPath();
 
 class TranscribeService {
     constructor(apiKey) {
