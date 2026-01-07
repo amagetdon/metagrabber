@@ -8,6 +8,7 @@ const puppeteer = require('puppeteer');
 const FacebookDownloader = require('./downloaders/facebook');
 const InstagramDownloader = require('./downloaders/instagram');
 const YouTubeDownloader = require('./downloaders/youtube');
+const GoogleAdsDownloader = require('./downloaders/googleads');
 
 const app = express();
 const PORT = 5000;
@@ -27,6 +28,7 @@ if (!fs.existsSync(downloadDir)) {
 const facebookDownloader = new FacebookDownloader();
 const instagramDownloader = new InstagramDownloader();
 const youtubeDownloader = new YouTubeDownloader();
+const googleAdsDownloader = new GoogleAdsDownloader();
 
 // 메인 페이지
 app.get('/', (req, res) => {
@@ -52,9 +54,21 @@ app.post('/api/extract', async (req, res) => {
             result = await instagramDownloader.extractVideoUrl(trimmedUrl);
         } else if (YouTubeDownloader.isValidUrl(trimmedUrl)) {
             result = await youtubeDownloader.extractVideoUrl(trimmedUrl);
+        } else if (GoogleAdsDownloader.isValidUrl(trimmedUrl)) {
+            // Google Ads에서 YouTube 비디오 추출
+            const googleResult = await googleAdsDownloader.extractVideoUrl(trimmedUrl);
+            if (googleResult && googleResult.isYouTube) {
+                // YouTube 다운로더로 실제 비디오 URL 추출
+                result = await youtubeDownloader.extractVideoUrl(googleResult.video_url);
+                if (result) {
+                    result.platform = 'googleads';
+                }
+            } else {
+                result = googleResult;
+            }
         } else {
             return res.status(400).json({
-                error: '지원하지 않는 URL입니다. YouTube, Instagram, Facebook URL을 입력해주세요.'
+                error: '지원하지 않는 URL입니다. YouTube, Instagram, Facebook, Google Ads URL을 입력해주세요.'
             });
         }
 
@@ -246,12 +260,14 @@ app.get('/api/proxy-download', async (req, res) => {
 // 서버 시작
 app.listen(PORT, () => {
     console.log('='.repeat(50));
-    console.log('MetaGrabber2 - 비디오 다운로더 (Node.js)');
+    console.log('MetaGrabber - Video Downloader');
     console.log('='.repeat(50));
     console.log(`\n서버 시작: http://localhost:${PORT}`);
     console.log('\n지원 플랫폼:');
+    console.log('  - YouTube');
+    console.log('  - Instagram');
     console.log('  - Facebook Ads Library');
-    console.log('  - Instagram Reels');
-    console.log('\n종료하려면 Ctrl+C를 누르세요.');
+    console.log('  - Google Ads Transparency');
+    console.log('\n종료: Ctrl+C');
     console.log('='.repeat(50));
 });

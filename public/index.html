@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MetaGrabber2 - Video Downloader</title>
+    <title>MetaGrabber - Video Downloader</title>
     <style>
         * {
             margin: 0;
@@ -64,6 +64,7 @@
         .platform-badge.youtube { border: 1px solid #ff0000; }
         .platform-badge.facebook { border: 1px solid #1877f2; }
         .platform-badge.instagram { border: 1px solid #e4405f; }
+        .platform-badge.googleads { border: 1px solid #4285f4; }
 
         .input-section {
             background: rgba(255, 255, 255, 0.05);
@@ -178,6 +179,11 @@
         .video-platform.instagram {
             background: rgba(228, 64, 95, 0.2);
             color: #e4405f;
+        }
+
+        .video-platform.googleads {
+            background: rgba(66, 133, 244, 0.2);
+            color: #4285f4;
         }
 
         .download-options {
@@ -539,8 +545,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>MetaGrabber2</h1>
-            <p class="subtitle">YouTube, Instagram, Facebook Video Downloader</p>
+            <h1>MetaGrabber</h1>
+            <p class="subtitle">Video Downloader</p>
             <div class="platforms">
                 <span class="platform-badge youtube">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff0000">
@@ -559,6 +565,12 @@
                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                     Facebook
+                </span>
+                <span class="platform-badge googleads">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#4285f4">
+                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                    </svg>
+                    Google Ads
                 </span>
             </div>
         </header>
@@ -664,7 +676,7 @@
 
         <section class="input-section">
             <div class="input-group">
-                <input type="text" id="urlInput" placeholder="YouTube, Instagram, Facebook URL을 붙여넣으세요">
+                <input type="text" id="urlInput" placeholder="영상 URL을 붙여넣으세요">
                 <button class="btn-primary" id="extractBtn" onclick="extractVideo()">추출하기</button>
             </div>
             <div class="error-message" id="errorMsg"></div>
@@ -701,7 +713,7 @@
         </section>
 
         <footer>
-            <p>MetaGrabber2 - Video Downloader</p>
+            <p>Powered by MetaGrabber</p>
         </footer>
     </div>
 
@@ -856,7 +868,7 @@
             document.getElementById('videoTitle').textContent = data.title || 'Video';
 
             const platformBadge = document.getElementById('videoPlatform');
-            const platformNames = { youtube: 'YouTube', instagram: 'Instagram', facebook: 'Facebook' };
+            const platformNames = { youtube: 'YouTube', instagram: 'Instagram', facebook: 'Facebook', googleads: 'Google Ads' };
             platformBadge.textContent = platformNames[data.platform] || data.platform;
             platformBadge.className = `video-platform ${data.platform}`;
 
