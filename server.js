@@ -303,7 +303,7 @@ app.get('/api/transcribe/status', (req, res) => {
 });
 
 // 서버 시작
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log('='.repeat(50));
     console.log('MetaGrabber - Video Downloader');
     console.log('='.repeat(50));
