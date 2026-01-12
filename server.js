@@ -761,6 +761,36 @@ app.post('/api/notion-url', async (req, res) => {
     }
 });
 
+// ===== 선택된 강사 관리 =====
+
+// 선택된 강사 조회
+app.get('/api/selected-instructor', async (req, res) => {
+    try {
+        const instructorId = await supabase.getSelectedInstructor();
+        return res.json({ success: true, instructorId: instructorId || '' });
+    } catch (error) {
+        console.error('[Server] 선택된 강사 조회 에러:', error.message);
+        return res.status(500).json({ error: '선택된 강사 조회 실패' });
+    }
+});
+
+// 선택된 강사 저장
+app.post('/api/selected-instructor', async (req, res) => {
+    const { instructorId } = req.body;
+
+    try {
+        const success = await supabase.setSelectedInstructor(instructorId || '');
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: '선택된 강사 저장 실패' });
+        }
+    } catch (error) {
+        console.error('[Server] 선택된 강사 저장 에러:', error.message);
+        return res.status(500).json({ error: '선택된 강사 저장 실패' });
+    }
+});
+
 // ===== 스크립트 생성 API =====
 
 // 전사 텍스트 + 지침 + 강사 정보로 새 스크립트 생성

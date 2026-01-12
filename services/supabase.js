@@ -155,6 +155,15 @@ class SupabaseService {
     async setNotionUrl(url) {
         return await this.setSession('notion_db_url', url);
     }
+
+    // ===== 선택된 강사 관리 =====
+    async getSelectedInstructor() {
+        return await this.getSession('selected_instructor');
+    }
+
+    async setSelectedInstructor(instructorId) {
+        return await this.setSession('selected_instructor', instructorId);
+    }
 }
 
 module.exports = new SupabaseService();
