@@ -13,6 +13,7 @@ const GoogleAdsDownloader = require('./downloaders/googleads');
 const TranscribeService = require('./services/transcribe');
 const apiKeyPool = require('./services/apiKeyPool');
 const supabase = require('./services/supabase');
+const notionService = require('./services/notion');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -620,6 +621,53 @@ app.delete('/api/openai/key/:index', async (req, res) => {
     } catch (error) {
         console.error('API 키 삭제 에러:', error.message);
         return res.status(400).json({ error: error.message });
+    }
+});
+
+// Notion 상태 확인
+app.get('/api/notion/status', (req, res) => {
+    const status = notionService.getStatus();
+    return res.json({
+        enabled: status.enabled,
+        message: status.enabled
+            ? 'Notion 연동이 활성화되어 있습니다'
+            : 'Notion API 설정이 필요합니다'
+    });
+});
+
+// Notion에 저장
+app.post('/api/notion/save', async (req, res) => {
+    const { videoUrl, videoTitle, platform, transcript, correctedText, summary, translatedText } = req.body;
+
+    if (!notionService.enabled) {
+        return res.status(400).json({ error: 'Notion 서비스가 비활성화 상태입니다.' });
+    }
+
+    if (!transcript && !correctedText && !summary && !translatedText) {
+        return res.status(400).json({ error: '저장할 내용이 없습니다.' });
+    }
+
+    try {
+        console.log('[Server] Notion 저장 시작...');
+        const result = await notionService.saveToNotion({
+            videoUrl,
+            videoTitle,
+            platform,
+            transcript,
+            correctedText,
+            summary,
+            translatedText
+        });
+
+        console.log('[Server] Notion 저장 완료:', result.url);
+        return res.json({
+            success: true,
+            message: 'Notion에 저장되었습니다!',
+            pageUrl: result.url
+        });
+    } catch (error) {
+        console.error('[Server] Notion 저장 에러:', error.message);
+        return res.status(500).json({ error: `Notion 저장 실패: ${error.message}` });
     }
 });
 

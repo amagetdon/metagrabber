@@ -8,6 +8,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@notionhq/client": "^5.6.0",
     "@supabase/supabase-js": "^2.89.0",
     "axios": "^1.6.2",
     "cors": "^2.8.5",
