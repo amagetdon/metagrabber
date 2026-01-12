@@ -19,63 +19,126 @@ class NotionService {
         }
     }
 
-    // 데이터베이스 스키마 조회
-    async getDatabaseSchema(databaseId) {
+    // 데이터베이스에서 강사 이름으로 기존 페이지 검색
+    async findInstructorPage(databaseId, instructorName) {
         const token = process.env.NOTION_API_TOKEN;
-        if (!token) {
-            throw new Error('Notion API 토큰이 설정되지 않았습니다.');
-        }
-
         if (!this.client) {
             this.client = new Client({ auth: token });
         }
 
         try {
-            console.log('[Notion] 스키마 조회 시작... DB:', databaseId);
-            const response = await this.client.databases.retrieve({
-                database_id: databaseId
+            console.log('[Notion] 강사 페이지 검색:', instructorName);
+
+            // 데이터베이스에서 제목에 강사 이름이 포함된 페이지 검색
+            const response = await this.client.databases.query({
+                database_id: databaseId,
+                filter: {
+                    property: '이름',
+                    title: {
+                        contains: instructorName
+                    }
+                }
             });
 
-            console.log('[Notion] 데이터베이스 응답:', JSON.stringify(response, null, 2).substring(0, 500));
+            if (response.results && response.results.length > 0) {
+                // "XXX 강사 보드" 형태의 페이지 찾기
+                const boardPage = response.results.find(page => {
+                    const title = page.properties['이름']?.title?.[0]?.plain_text || '';
+                    return title.includes('강사 보드') || title.includes(instructorName);
+                });
 
-            if (!response || !response.properties) {
-                console.log('[Notion] 스키마 응답이 비어있음, 기본값 사용');
-                return {
-                    properties: {},
-                    titleProperty: '이름',
-                    raw: {}
-                };
-            }
-
-            // 속성 정보 추출
-            const properties = {};
-            let titleProperty = null;
-
-            for (const [name, prop] of Object.entries(response.properties)) {
-                properties[name] = prop.type;
-                if (prop.type === 'title') {
-                    titleProperty = name;
+                if (boardPage) {
+                    console.log('[Notion] 기존 강사 페이지 발견:', boardPage.id);
+                    return boardPage;
                 }
             }
 
-            console.log('[Notion] 속성 목록:', properties);
-            console.log('[Notion] 제목 속성:', titleProperty);
-
-            return {
-                properties,
-                titleProperty: titleProperty || '이름',
-                raw: response.properties
-            };
+            console.log('[Notion] 기존 강사 페이지 없음');
+            return null;
         } catch (error) {
-            console.error('[Notion] 스키마 조회 실패:', error.message);
-            console.error('[Notion] 스키마 에러 상세:', JSON.stringify(error.body || error, null, 2));
-            // 스키마 조회 실패해도 기본값으로 진행
-            return {
-                properties: {},
-                titleProperty: '이름',
-                raw: {}
-            };
+            console.error('[Notion] 페이지 검색 실패:', error.message);
+            return null;
         }
+    }
+
+    // 기존 페이지에 블록 추가
+    async appendBlocksToPage(pageId, blocks) {
+        try {
+            console.log('[Notion] 페이지에 블록 추가:', pageId);
+
+            const response = await this.client.blocks.children.append({
+                block_id: pageId,
+                children: blocks
+            });
+
+            console.log('[Notion] 블록 추가 완료');
+            return response;
+        } catch (error) {
+            console.error('[Notion] 블록 추가 실패:', error.message);
+            throw error;
+        }
+    }
+
+    // 비디오 + 스크립트 블록 생성 (사용자 템플릿에 맞는 구조)
+    createVideoScriptBlock(videoUrl, scriptText) {
+        // 스크립트 텍스트를 청크로 분할
+        const textChunks = this.splitText(scriptText || '', 1900);
+
+        // 내부 콜아웃 (배경색 있는 콜아웃 안에 텍스트)
+        const innerCalloutChildren = textChunks.map(chunk => ({
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+                rich_text: [{ type: 'text', text: { content: chunk } }]
+            }
+        }));
+
+        // 외부 콜아웃 > 내부 콜아웃 > 텍스트 구조
+        const calloutBlock = {
+            object: 'block',
+            type: 'callout',
+            callout: {
+                rich_text: [],
+                icon: null,
+                color: 'gray_background',
+                children: [{
+                    object: 'block',
+                    type: 'callout',
+                    callout: {
+                        rich_text: textChunks.length > 0 ? [{ type: 'text', text: { content: textChunks[0] } }] : [],
+                        icon: null,
+                        color: 'default',
+                        children: textChunks.length > 1 ? textChunks.slice(1).map(chunk => ({
+                            object: 'block',
+                            type: 'paragraph',
+                            paragraph: {
+                                rich_text: [{ type: 'text', text: { content: chunk } }]
+                            }
+                        })) : undefined
+                    }
+                }]
+            }
+        };
+
+        // 동영상 블록
+        const videoBlock = videoUrl ? {
+            object: 'block',
+            type: 'video',
+            video: {
+                type: 'external',
+                external: {
+                    url: videoUrl
+                }
+            }
+        } : {
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+                rich_text: [{ type: 'text', text: { content: '(동영상 URL 없음)' } }]
+            }
+        };
+
+        return [videoBlock, calloutBlock];
     }
 
     async saveToNotion(data) {
@@ -105,166 +168,74 @@ class NotionService {
         }
 
         try {
-            // 먼저 데이터베이스 스키마를 조회해서 속성 이름 확인
-            const schema = await this.getDatabaseSchema(databaseId);
-            const titleProperty = schema.titleProperty || '이름';
+            // 1. 기존 강사 페이지 검색
+            let existingPage = null;
+            if (instructorName) {
+                existingPage = await this.findInstructorPage(databaseId, instructorName);
+            }
 
-            console.log('[Notion] 사용할 제목 속성:', titleProperty);
+            // 2. 추가할 블록 생성 (비디오 + 스크립트)
+            const newBlocks = this.createVideoScriptBlock(videoUrl, correctedText || transcript);
 
-            // 동적으로 속성 구성
-            const properties = {};
+            if (existingPage) {
+                // 3a. 기존 페이지에 블록 추가
+                await this.appendBlocksToPage(existingPage.id, newBlocks);
 
-            // 제목 속성 (필수)
-            properties[titleProperty] = {
-                title: [
-                    {
-                        text: {
-                            content: videoTitle || '제목 없음'
-                        }
+                console.log('[Notion] 기존 페이지에 콘텐츠 추가 완료');
+                return {
+                    success: true,
+                    pageId: existingPage.id,
+                    url: existingPage.url,
+                    isNewPage: false
+                };
+            } else {
+                // 3b. 새 페이지 생성
+                const pageTitle = instructorName ? `${instructorName} 강사 보드` : (videoTitle || '새 스크립트');
+
+                const properties = {
+                    '이름': {
+                        title: [{ text: { content: pageTitle } }]
                     }
-                ]
-            };
-
-            // 데이터베이스에 있는 속성만 추가
-            if (schema.properties['태그']) {
-                properties['태그'] = {
-                    multi_select: [{ name: '광고소재' }]
                 };
-            }
 
-            if (schema.properties['선택'] && instructorName) {
-                properties['선택'] = {
-                    select: { name: instructorName }
-                };
-            }
-
-            // 페이지 본문 구성 - 사용자 템플릿에 맞는 2열 레이아웃
-            const children = [];
-
-            // 2열 레이아웃: 왼쪽 비디오, 오른쪽 스크립트
-            const columnList = {
-                object: 'block',
-                type: 'column_list',
-                column_list: {
-                    children: [
-                        // 왼쪽 열 - 비디오
-                        {
-                            object: 'block',
-                            type: 'column',
-                            column: {
-                                children: [
-                                    {
-                                        object: 'block',
-                                        type: 'heading_3',
-                                        heading_3: {
-                                            rich_text: [{ type: 'text', text: { content: '영상' } }]
-                                        }
-                                    }
-                                ]
-                            }
+                // 태그, 선택 속성 추가 시도
+                try {
+                    const response = await this.client.pages.create({
+                        parent: { database_id: databaseId },
+                        properties: {
+                            ...properties,
+                            '태그': { multi_select: [{ name: '광고소재' }] },
+                            '선택': instructorName ? { select: { name: instructorName } } : undefined
                         },
-                        // 오른쪽 열 - 스크립트
-                        {
-                            object: 'block',
-                            type: 'column',
-                            column: {
-                                children: []
-                            }
-                        }
-                    ]
-                }
-            };
-
-            // 왼쪽 열에 비디오 embed 추가 (URL이 있는 경우)
-            if (videoUrl) {
-                columnList.column_list.children[0].column.children.push({
-                    object: 'block',
-                    type: 'embed',
-                    embed: {
-                        url: videoUrl
-                    }
-                });
-            }
-
-            // 오른쪽 열에 콜아웃 블록으로 스크립트 추가
-            const rightColumn = columnList.column_list.children[1].column.children;
-
-            // 교정된 텍스트를 콜아웃으로 추가
-            if (correctedText) {
-                rightColumn.push({
-                    object: 'block',
-                    type: 'heading_3',
-                    heading_3: {
-                        rich_text: [{ type: 'text', text: { content: '스크립트' } }]
-                    }
-                });
-
-                // 콜아웃 블록으로 텍스트 추가
-                const correctedChunks = this.splitText(correctedText, 1900);
-                for (const chunk of correctedChunks) {
-                    rightColumn.push({
-                        object: 'block',
-                        type: 'callout',
-                        callout: {
-                            rich_text: [{ type: 'text', text: { content: chunk } }],
-                            icon: { emoji: '📝' }
-                        }
+                        children: newBlocks
                     });
+
+                    console.log('[Notion] 새 페이지 생성 완료:', response.id);
+                    return {
+                        success: true,
+                        pageId: response.id,
+                        url: response.url,
+                        isNewPage: true
+                    };
+                } catch (propError) {
+                    // 속성 오류 시 기본 속성만으로 재시도
+                    console.log('[Notion] 속성 오류, 기본 속성으로 재시도...');
+
+                    const response = await this.client.pages.create({
+                        parent: { database_id: databaseId },
+                        properties: properties,
+                        children: newBlocks
+                    });
+
+                    console.log('[Notion] 새 페이지 생성 완료 (기본 속성):', response.id);
+                    return {
+                        success: true,
+                        pageId: response.id,
+                        url: response.url,
+                        isNewPage: true
+                    };
                 }
             }
-
-            children.push(columnList);
-
-            // 구분선
-            children.push({
-                object: 'block',
-                type: 'divider',
-                divider: {}
-            });
-
-            // 추가 정보 섹션
-            // 전사 결과
-            if (transcript) {
-                children.push({
-                    object: 'block',
-                    type: 'toggle',
-                    toggle: {
-                        rich_text: [{ type: 'text', text: { content: '📋 전사 원본' } }],
-                        children: this.splitText(transcript, 1900).map(chunk => ({
-                            object: 'block',
-                            type: 'paragraph',
-                            paragraph: {
-                                rich_text: [{ type: 'text', text: { content: chunk } }]
-                            }
-                        }))
-                    }
-                });
-            }
-
-            // 요약
-            if (summary) {
-                children.push({
-                    object: 'block',
-                    type: 'callout',
-                    callout: {
-                        rich_text: [{ type: 'text', text: { content: summary.substring(0, 1900) } }],
-                        icon: { emoji: '📌' }
-                    }
-                });
-            }
-
-            const response = await this.client.pages.create({
-                parent: { database_id: databaseId },
-                properties,
-                children: children.length > 0 ? children : undefined
-            });
-
-            console.log('[Notion] 페이지 생성 완료:', response.id);
-            return {
-                success: true,
-                pageId: response.id,
-                url: response.url
-            };
         } catch (error) {
             console.error('[Notion] 저장 실패:', error.message);
             console.error('[Notion] 상세 에러:', JSON.stringify(error.body || error, null, 2));
@@ -284,6 +255,8 @@ class NotionService {
 
     // 긴 텍스트를 청크로 분할
     splitText(text, maxLength) {
+        if (!text) return [];
+
         const chunks = [];
         let remaining = text;
 
