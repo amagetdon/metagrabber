@@ -22,15 +22,14 @@ class NotionService {
     // 데이터베이스에서 강사 이름으로 기존 페이지 검색
     async findInstructorPage(databaseId, instructorName) {
         const token = process.env.NOTION_API_TOKEN;
-        if (!this.client) {
-            this.client = new Client({ auth: token });
-        }
+        // 클라이언트 새로 생성
+        const client = new Client({ auth: token });
 
         try {
             console.log('[Notion] 강사 페이지 검색:', instructorName);
 
             // 데이터베이스에서 제목에 강사 이름이 포함된 페이지 검색
-            const response = await this.client.databases.query({
+            const response = await client.databases.query({
                 database_id: databaseId,
                 filter: {
                     property: '이름',
@@ -94,29 +93,33 @@ class NotionService {
         }));
 
         // 외부 콜아웃 > 내부 콜아웃 > 텍스트 구조
+        const innerCallout = {
+            object: 'block',
+            type: 'callout',
+            callout: {
+                rich_text: textChunks.length > 0 ? [{ type: 'text', text: { content: textChunks[0] } }] : [],
+                color: 'default'
+            }
+        };
+
+        // 긴 텍스트면 추가 paragraph 블록
+        if (textChunks.length > 1) {
+            innerCallout.callout.children = textChunks.slice(1).map(chunk => ({
+                object: 'block',
+                type: 'paragraph',
+                paragraph: {
+                    rich_text: [{ type: 'text', text: { content: chunk } }]
+                }
+            }));
+        }
+
         const calloutBlock = {
             object: 'block',
             type: 'callout',
             callout: {
                 rich_text: [],
-                icon: null,
                 color: 'gray_background',
-                children: [{
-                    object: 'block',
-                    type: 'callout',
-                    callout: {
-                        rich_text: textChunks.length > 0 ? [{ type: 'text', text: { content: textChunks[0] } }] : [],
-                        icon: null,
-                        color: 'default',
-                        children: textChunks.length > 1 ? textChunks.slice(1).map(chunk => ({
-                            object: 'block',
-                            type: 'paragraph',
-                            paragraph: {
-                                rich_text: [{ type: 'text', text: { content: chunk } }]
-                            }
-                        })) : undefined
-                    }
-                }]
+                children: [innerCallout]
             }
         };
 
