@@ -624,6 +624,195 @@ app.delete('/api/openai/key/:index', async (req, res) => {
     }
 });
 
+// ===== 강사 관리 API =====
+
+// 강사 목록 조회
+app.get('/api/instructors', async (req, res) => {
+    try {
+        const instructors = await supabase.getInstructors();
+        return res.json({ success: true, instructors });
+    } catch (error) {
+        console.error('[Server] 강사 목록 조회 에러:', error.message);
+        return res.status(500).json({ error: '강사 목록 조회 실패' });
+    }
+});
+
+// 강사 추가
+app.post('/api/instructors', async (req, res) => {
+    const { name, info } = req.body;
+
+    if (!name || !info) {
+        return res.status(400).json({ error: '강사 이름과 정보가 필요합니다' });
+    }
+
+    try {
+        const instructor = await supabase.addInstructor(name, info);
+        if (instructor) {
+            return res.json({ success: true, instructor });
+        } else {
+            return res.status(500).json({ error: '강사 추가 실패' });
+        }
+    } catch (error) {
+        console.error('[Server] 강사 추가 에러:', error.message);
+        return res.status(500).json({ error: '강사 추가 실패' });
+    }
+});
+
+// 강사 수정
+app.put('/api/instructors/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, info } = req.body;
+
+    if (!name || !info) {
+        return res.status(400).json({ error: '강사 이름과 정보가 필요합니다' });
+    }
+
+    try {
+        const success = await supabase.updateInstructor(id, name, info);
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: '강사 수정 실패' });
+        }
+    } catch (error) {
+        console.error('[Server] 강사 수정 에러:', error.message);
+        return res.status(500).json({ error: '강사 수정 실패' });
+    }
+});
+
+// 강사 삭제
+app.delete('/api/instructors/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const success = await supabase.deleteInstructor(id);
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: '강사 삭제 실패' });
+        }
+    } catch (error) {
+        console.error('[Server] 강사 삭제 에러:', error.message);
+        return res.status(500).json({ error: '강사 삭제 실패' });
+    }
+});
+
+// ===== 지침(프롬프트) 관리 API =====
+
+// 지침 조회
+app.get('/api/prompt', async (req, res) => {
+    try {
+        const prompt = await supabase.getPrompt();
+        return res.json({ success: true, prompt: prompt || '' });
+    } catch (error) {
+        console.error('[Server] 지침 조회 에러:', error.message);
+        return res.status(500).json({ error: '지침 조회 실패' });
+    }
+});
+
+// 지침 저장
+app.post('/api/prompt', async (req, res) => {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+        return res.status(400).json({ error: '지침 내용이 필요합니다' });
+    }
+
+    try {
+        const success = await supabase.setPrompt(prompt);
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: '지침 저장 실패' });
+        }
+    } catch (error) {
+        console.error('[Server] 지침 저장 에러:', error.message);
+        return res.status(500).json({ error: '지침 저장 실패' });
+    }
+});
+
+// ===== 스크립트 생성 API =====
+
+// 전사 텍스트 + 지침 + 강사 정보로 새 스크립트 생성
+app.post('/api/generate-script', async (req, res) => {
+    const { transcript, instructorId } = req.body;
+
+    if (!transcript) {
+        return res.status(400).json({ error: '전사 텍스트가 필요합니다' });
+    }
+
+    if (!instructorId) {
+        return res.status(400).json({ error: '강사를 선택해주세요' });
+    }
+
+    if (apiKeyPool.getKeyCount() === 0) {
+        return res.status(400).json({ error: 'API 키가 등록되지 않았습니다' });
+    }
+
+    const apiKey = apiKeyPool.getAvailableKey();
+    if (!apiKey) {
+        return res.status(400).json({ error: '사용 가능한 API 키가 없습니다' });
+    }
+
+    apiKeyPool.markInUse(apiKey);
+
+    try {
+        // 지침 가져오기
+        const prompt = await supabase.getPrompt();
+        if (!prompt) {
+            apiKeyPool.markAvailable(apiKey);
+            return res.status(400).json({ error: '지침이 설정되지 않았습니다. 먼저 지침을 설정해주세요.' });
+        }
+
+        // 강사 정보 가져오기
+        const instructors = await supabase.getInstructors();
+        const instructor = instructors.find(i => i.id === instructorId);
+        if (!instructor) {
+            apiKeyPool.markAvailable(apiKey);
+            return res.status(400).json({ error: '선택한 강사를 찾을 수 없습니다' });
+        }
+
+        const OpenAI = require('openai');
+        const openai = new OpenAI({ apiKey });
+
+        console.log('[Server] 스크립트 생성 시작...');
+        console.log('[Server] 강사:', instructor.name);
+
+        const systemPrompt = `${prompt}
+
+## 강사 정보
+- 이름: ${instructor.name}
+- 정보: ${instructor.info}`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: systemPrompt
+                },
+                {
+                    role: 'user',
+                    content: `다음 스크립트를 위 강사 정보에 맞게 변환해주세요:\n\n${transcript}`
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 4000
+        });
+
+        apiKeyPool.markAvailable(apiKey);
+
+        const generatedScript = response.choices[0]?.message?.content || '';
+        console.log('[Server] 스크립트 생성 완료');
+
+        return res.json({ success: true, script: generatedScript, instructor: instructor.name });
+    } catch (error) {
+        apiKeyPool.markAvailable(apiKey);
+        console.error('[Server] 스크립트 생성 에러:', error.message);
+        return res.status(500).json({ error: `스크립트 생성 실패: ${error.message}` });
+    }
+});
+
 // Notion 상태 확인
 app.get('/api/notion/status', (req, res) => {
     const status = notionService.getStatus();
