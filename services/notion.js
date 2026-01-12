@@ -195,7 +195,13 @@ class NotionService {
             }
 
             // 2. 추가할 블록 생성 (비디오 + 스크립트)
-            const newBlocks = this.createVideoScriptBlock(videoUrl, correctedText || transcript);
+            console.log('[Notion] videoUrl:', videoUrl);
+            console.log('[Notion] correctedText 길이:', correctedText?.length || 0);
+            console.log('[Notion] transcript 길이:', transcript?.length || 0);
+            const scriptToUse = correctedText || transcript;
+            console.log('[Notion] 사용할 스크립트 길이:', scriptToUse?.length || 0);
+            const newBlocks = this.createVideoScriptBlock(videoUrl, scriptToUse);
+            console.log('[Notion] 생성된 블록:', JSON.stringify(newBlocks, null, 2));
 
             if (existingPage) {
                 // 3a. 기존 페이지에 블록 추가
