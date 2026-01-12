@@ -90,16 +90,109 @@ class NotionService {
         }
     }
 
-    // 기존 페이지에 블록 추가
-    async appendBlocksToPage(pageId, blocks) {
+    // 기존 페이지에 블록 추가 (2열 레이아웃 지원)
+    async appendBlocksToPage(pageId, newColumn) {
         const client = this.getClient();
 
         try {
             console.log('[Notion] 페이지에 블록 추가:', pageId);
 
+            // 1. 페이지의 기존 블록들 조회
+            const existingBlocks = await client.blocks.children.list({
+                block_id: pageId
+            });
+
+            console.log('[Notion] 기존 블록 수:', existingBlocks.results?.length || 0);
+
+            // 2. 마지막 블록이 1열짜리 column_list인지 확인
+            const lastBlock = existingBlocks.results?.[existingBlocks.results.length - 1];
+
+            if (lastBlock && lastBlock.type === 'column_list') {
+                // column_list의 자식(column들) 조회
+                const columns = await client.blocks.children.list({
+                    block_id: lastBlock.id
+                });
+
+                console.log('[Notion] 마지막 column_list의 열 수:', columns.results?.length || 0);
+
+                // 1열짜리면 삭제하고 2열로 재생성
+                if (columns.results?.length === 1) {
+                    console.log('[Notion] 1열 column_list 발견 - 2열로 확장');
+
+                    // 기존 column의 내용 가져오기
+                    const existingColumnContent = await client.blocks.children.list({
+                        block_id: columns.results[0].id
+                    });
+
+                    // 기존 블록들을 새 column 형식으로 변환
+                    const existingChildren = existingColumnContent.results?.map(block => {
+                        // 블록 복사 (id 제외)
+                        const { id, ...blockWithoutId } = block;
+                        return blockWithoutId;
+                    }) || [];
+
+                    // 기존 column_list 삭제
+                    await client.blocks.delete({ block_id: lastBlock.id });
+
+                    // 2열 column_list 생성
+                    const twoColumnList = {
+                        object: 'block',
+                        type: 'column_list',
+                        column_list: {
+                            children: [
+                                {
+                                    object: 'block',
+                                    type: 'column',
+                                    column: {
+                                        children: existingChildren.length > 0 ? existingChildren : [{
+                                            object: 'block',
+                                            type: 'paragraph',
+                                            paragraph: { rich_text: [] }
+                                        }]
+                                    }
+                                },
+                                {
+                                    object: 'block',
+                                    type: 'column',
+                                    column: {
+                                        children: newColumn
+                                    }
+                                }
+                            ]
+                        }
+                    };
+
+                    const response = await client.blocks.children.append({
+                        block_id: pageId,
+                        children: [twoColumnList]
+                    });
+
+                    console.log('[Notion] 2열 column_list 생성 완료');
+                    return response;
+                }
+            }
+
+            // 3. 새 1열 column_list 추가
+            console.log('[Notion] 새 1열 column_list 생성');
+            const oneColumnList = {
+                object: 'block',
+                type: 'column_list',
+                column_list: {
+                    children: [
+                        {
+                            object: 'block',
+                            type: 'column',
+                            column: {
+                                children: newColumn
+                            }
+                        }
+                    ]
+                }
+            };
+
             const response = await client.blocks.children.append({
                 block_id: pageId,
-                children: blocks
+                children: [oneColumnList]
             });
 
             console.log('[Notion] 블록 추가 완료');
@@ -110,7 +203,7 @@ class NotionService {
         }
     }
 
-    // 비디오 + 스크립트 블록 생성 (2열 레이아웃)
+    // 비디오 + 스크립트 블록 생성 (column 내용물만 반환)
     createVideoScriptBlock(videoUrl, scriptText) {
         // 스크립트 텍스트를 청크로 분할
         const textChunks = this.splitText(scriptText || '', 1900);
@@ -165,24 +258,8 @@ class NotionService {
             }
         };
 
-        // 2열 레이아웃: column_list > column (비디오) + column (콜아웃)
-        const columnList = {
-            object: 'block',
-            type: 'column_list',
-            column_list: {
-                children: [
-                    {
-                        object: 'block',
-                        type: 'column',
-                        column: {
-                            children: [videoBlock, outerCallout]
-                        }
-                    }
-                ]
-            }
-        };
-
-        return [columnList];
+        // column 내용물 반환 (비디오 + 콜아웃)
+        return [videoBlock, outerCallout];
     }
 
     async saveToNotion(data) {
