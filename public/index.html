@@ -1799,6 +1799,13 @@
                     lastFailedUrl = null; // 성공시 초기화
                     document.getElementById('loginBanner').style.display = 'none';
                     displayResult(data.data);
+
+                    // 자동으로 음성 전사 실행
+                    if (transcribeAvailable) {
+                        setTimeout(() => {
+                            transcribeVideo(true); // autoCorrect = true
+                        }, 500);
+                    }
                 } else {
                     // Instagram URL인 경우 인증 배너 표시
                     if (url.includes('instagram.com')) {
@@ -1950,7 +1957,7 @@
         }
 
         // 전사 기능
-        async function transcribeVideo() {
+        async function transcribeVideo(autoCorrect = false) {
             if (!currentVideoData?.video_url) {
                 showError('전사할 비디오가 없습니다.');
                 return;
@@ -1995,6 +2002,13 @@
                     currentTranscript = data.text;
                     content.textContent = data.text;
                     showSuccess('전사가 완료되었습니다.');
+
+                    // 자동 교정 실행
+                    if (autoCorrect) {
+                        setTimeout(() => {
+                            correctTranscript();
+                        }, 500);
+                    }
                 } else {
                     const errorMsg = data.error || '알 수 없는 오류가 발생했습니다';
                     content.innerHTML = `<span style="color: #f87171;">오류: ${errorMsg}</span>`;
