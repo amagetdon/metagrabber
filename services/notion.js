@@ -31,11 +31,21 @@ class NotionService {
         }
 
         try {
+            console.log('[Notion] 스키마 조회 시작... DB:', databaseId);
             const response = await this.client.databases.retrieve({
                 database_id: databaseId
             });
 
-            console.log('[Notion] 데이터베이스 스키마 조회 완료');
+            console.log('[Notion] 데이터베이스 응답:', JSON.stringify(response, null, 2).substring(0, 500));
+
+            if (!response || !response.properties) {
+                console.log('[Notion] 스키마 응답이 비어있음, 기본값 사용');
+                return {
+                    properties: {},
+                    titleProperty: '이름',
+                    raw: {}
+                };
+            }
 
             // 속성 정보 추출
             const properties = {};
@@ -53,12 +63,18 @@ class NotionService {
 
             return {
                 properties,
-                titleProperty,
+                titleProperty: titleProperty || '이름',
                 raw: response.properties
             };
         } catch (error) {
             console.error('[Notion] 스키마 조회 실패:', error.message);
-            throw error;
+            console.error('[Notion] 스키마 에러 상세:', JSON.stringify(error.body || error, null, 2));
+            // 스키마 조회 실패해도 기본값으로 진행
+            return {
+                properties: {},
+                titleProperty: '이름',
+                raw: {}
+            };
         }
     }
 
