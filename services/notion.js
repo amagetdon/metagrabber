@@ -104,7 +104,7 @@ class NotionService {
 
             console.log('[Notion] 기존 블록 수:', existingBlocks.results?.length || 0);
 
-            // 2. 마지막 블록이 1열짜리 column_list인지 확인
+            // 2. 마지막 블록이 column_list이고 두 번째 열이 비어있는지 확인
             const lastBlock = existingBlocks.results?.[existingBlocks.results.length - 1];
 
             if (lastBlock && lastBlock.type === 'column_list') {
@@ -115,66 +115,82 @@ class NotionService {
 
                 console.log('[Notion] 마지막 column_list의 열 수:', columns.results?.length || 0);
 
-                // 1열짜리면 삭제하고 2열로 재생성
-                if (columns.results?.length === 1) {
-                    console.log('[Notion] 1열 column_list 발견 - 2열로 확장');
-
-                    // 기존 column의 내용 가져오기
-                    const existingColumnContent = await client.blocks.children.list({
-                        block_id: columns.results[0].id
+                // 2열이고, 두 번째 열이 비어있는지 확인
+                if (columns.results?.length === 2) {
+                    const secondColumn = columns.results[1];
+                    const secondColumnContent = await client.blocks.children.list({
+                        block_id: secondColumn.id
                     });
 
-                    // 기존 블록들을 새 column 형식으로 변환
-                    const existingChildren = existingColumnContent.results?.map(block => {
-                        // 블록 복사 (id 제외)
-                        const { id, ...blockWithoutId } = block;
-                        return blockWithoutId;
-                    }) || [];
+                    // 두 번째 열이 비어있는지 확인 (빈 paragraph만 있거나 내용이 없음)
+                    const isSecondColumnEmpty =
+                        secondColumnContent.results?.length === 0 ||
+                        (secondColumnContent.results?.length === 1 &&
+                         secondColumnContent.results[0].type === 'paragraph' &&
+                         (!secondColumnContent.results[0].paragraph?.rich_text?.length));
 
-                    // 기존 column_list 삭제
-                    await client.blocks.delete({ block_id: lastBlock.id });
+                    console.log('[Notion] 두 번째 열 비어있음:', isSecondColumnEmpty);
 
-                    // 2열 column_list 생성
-                    const twoColumnList = {
-                        object: 'block',
-                        type: 'column_list',
-                        column_list: {
-                            children: [
-                                {
-                                    object: 'block',
-                                    type: 'column',
-                                    column: {
-                                        children: existingChildren.length > 0 ? existingChildren : [{
-                                            object: 'block',
-                                            type: 'paragraph',
-                                            paragraph: { rich_text: [] }
-                                        }]
+                    if (isSecondColumnEmpty) {
+                        console.log('[Notion] 빈 두 번째 열 발견 - 내용 채우기');
+
+                        // 첫 번째 column의 내용 가져오기
+                        const firstColumn = columns.results[0];
+                        const firstColumnContent = await client.blocks.children.list({
+                            block_id: firstColumn.id
+                        });
+
+                        // 기존 블록들을 새 column 형식으로 변환
+                        const existingChildren = firstColumnContent.results?.map(block => {
+                            const { id, parent, created_time, last_edited_time, created_by, last_edited_by, has_children, archived, in_trash, ...rest } = block;
+                            return rest;
+                        }) || [];
+
+                        // 기존 column_list 삭제
+                        await client.blocks.delete({ block_id: lastBlock.id });
+
+                        // 2열 column_list 재생성 (두 번째 열에 새 내용)
+                        const twoColumnList = {
+                            object: 'block',
+                            type: 'column_list',
+                            column_list: {
+                                children: [
+                                    {
+                                        object: 'block',
+                                        type: 'column',
+                                        column: {
+                                            children: existingChildren.length > 0 ? existingChildren : [{
+                                                object: 'block',
+                                                type: 'paragraph',
+                                                paragraph: { rich_text: [] }
+                                            }]
+                                        }
+                                    },
+                                    {
+                                        object: 'block',
+                                        type: 'column',
+                                        column: {
+                                            children: newColumn
+                                        }
                                     }
-                                },
-                                {
-                                    object: 'block',
-                                    type: 'column',
-                                    column: {
-                                        children: newColumn
-                                    }
-                                }
-                            ]
-                        }
-                    };
+                                ]
+                            }
+                        };
 
-                    const response = await client.blocks.children.append({
-                        block_id: pageId,
-                        children: [twoColumnList]
-                    });
+                        const response = await client.blocks.children.append({
+                            block_id: pageId,
+                            children: [twoColumnList]
+                        });
 
-                    console.log('[Notion] 2열 column_list 생성 완료');
-                    return response;
+                        console.log('[Notion] 2열 column_list 완성');
+                        return response;
+                    }
                 }
             }
 
-            // 3. 새 1열 column_list 추가
-            console.log('[Notion] 새 1열 column_list 생성');
-            const oneColumnList = {
+            // 3. 새 2열 column_list 추가 (두 번째 열은 빈 placeholder)
+            console.log('[Notion] 새 2열 column_list 생성 (두 번째 열 비움)');
+            const twoColumnListNew = {
                 object: 'block',
                 type: 'column_list',
                 column_list: {
@@ -185,6 +201,19 @@ class NotionService {
                             column: {
                                 children: newColumn
                             }
+                        },
+                        {
+                            object: 'block',
+                            type: 'column',
+                            column: {
+                                children: [{
+                                    object: 'block',
+                                    type: 'paragraph',
+                                    paragraph: {
+                                        rich_text: []
+                                    }
+                                }]
+                            }
                         }
                     ]
                 }
@@ -192,7 +221,7 @@ class NotionService {
 
             const response = await client.blocks.children.append({
                 block_id: pageId,
-                children: [oneColumnList]
+                children: [twoColumnListNew]
             });
 
             console.log('[Notion] 블록 추가 완료');
