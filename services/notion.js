@@ -2,7 +2,6 @@ const { Client } = require('@notionhq/client');
 
 class NotionService {
     constructor() {
-        this.client = null;
         this.databaseId = process.env.NOTION_DATABASE_ID;
         this.enabled = false;
         this.init();
@@ -10,45 +9,56 @@ class NotionService {
 
     init() {
         const token = process.env.NOTION_API_TOKEN;
-        if (token && this.databaseId) {
-            this.client = new Client({ auth: token });
+        if (token) {
             this.enabled = true;
             console.log('[Notion] 서비스 활성화됨');
         } else {
-            console.log('[Notion] API 토큰 또는 데이터베이스 ID가 없습니다. 서비스 비활성화.');
+            console.log('[Notion] API 토큰이 없습니다. 서비스 비활성화.');
         }
+    }
+
+    // 클라이언트 생성 헬퍼
+    getClient() {
+        const token = process.env.NOTION_API_TOKEN;
+        if (!token) {
+            throw new Error('Notion API 토큰이 설정되지 않았습니다.');
+        }
+        return new Client({ auth: token });
     }
 
     // 데이터베이스에서 강사 이름으로 기존 페이지 검색
     async findInstructorPage(databaseId, instructorName) {
-        const token = process.env.NOTION_API_TOKEN;
-        // 클라이언트 새로 생성
-        const client = new Client({ auth: token });
+        const client = this.getClient();
 
         try {
             console.log('[Notion] 강사 페이지 검색:', instructorName);
 
-            // 데이터베이스에서 제목에 강사 이름이 포함된 페이지 검색
+            // 데이터베이스의 모든 페이지 조회
             const response = await client.databases.query({
-                database_id: databaseId,
-                filter: {
-                    property: '이름',
-                    title: {
-                        contains: instructorName
-                    }
-                }
+                database_id: databaseId
             });
+
+            console.log('[Notion] 검색 결과 개수:', response.results?.length || 0);
 
             if (response.results && response.results.length > 0) {
                 // "XXX 강사 보드" 형태의 페이지 찾기
-                const boardPage = response.results.find(page => {
-                    const title = page.properties['이름']?.title?.[0]?.plain_text || '';
-                    return title.includes('강사 보드') || title.includes(instructorName);
-                });
+                for (const page of response.results) {
+                    // 제목 속성 찾기 (어떤 이름이든)
+                    let pageTitle = '';
+                    for (const [propName, propValue] of Object.entries(page.properties)) {
+                        if (propValue.type === 'title' && propValue.title?.length > 0) {
+                            pageTitle = propValue.title[0].plain_text || '';
+                            break;
+                        }
+                    }
 
-                if (boardPage) {
-                    console.log('[Notion] 기존 강사 페이지 발견:', boardPage.id);
-                    return boardPage;
+                    console.log('[Notion] 페이지 제목:', pageTitle);
+
+                    // 강사 이름이 포함되고 "강사 보드"가 포함된 페이지 찾기
+                    if (pageTitle.includes(instructorName) && pageTitle.includes('강사 보드')) {
+                        console.log('[Notion] 기존 강사 페이지 발견:', page.id, pageTitle);
+                        return page;
+                    }
                 }
             }
 
@@ -56,16 +66,19 @@ class NotionService {
             return null;
         } catch (error) {
             console.error('[Notion] 페이지 검색 실패:', error.message);
+            console.error('[Notion] 상세:', error);
             return null;
         }
     }
 
     // 기존 페이지에 블록 추가
     async appendBlocksToPage(pageId, blocks) {
+        const client = this.getClient();
+
         try {
             console.log('[Notion] 페이지에 블록 추가:', pageId);
 
-            const response = await this.client.blocks.children.append({
+            const response = await client.blocks.children.append({
                 block_id: pageId,
                 children: blocks
             });
@@ -83,16 +96,7 @@ class NotionService {
         // 스크립트 텍스트를 청크로 분할
         const textChunks = this.splitText(scriptText || '', 1900);
 
-        // 내부 콜아웃 (배경색 있는 콜아웃 안에 텍스트)
-        const innerCalloutChildren = textChunks.map(chunk => ({
-            object: 'block',
-            type: 'paragraph',
-            paragraph: {
-                rich_text: [{ type: 'text', text: { content: chunk } }]
-            }
-        }));
-
-        // 외부 콜아웃 > 내부 콜아웃 > 텍스트 구조
+        // 내부 콜아웃
         const innerCallout = {
             object: 'block',
             type: 'callout',
@@ -113,6 +117,7 @@ class NotionService {
             }));
         }
 
+        // 외부 콜아웃
         const calloutBlock = {
             object: 'block',
             type: 'callout',
@@ -145,11 +150,6 @@ class NotionService {
     }
 
     async saveToNotion(data) {
-        const token = process.env.NOTION_API_TOKEN;
-        if (!token) {
-            throw new Error('Notion API 토큰이 설정되지 않았습니다.');
-        }
-
         const {
             databaseId,
             videoUrl,
@@ -166,9 +166,7 @@ class NotionService {
             throw new Error('데이터베이스 ID가 필요합니다.');
         }
 
-        if (!this.client) {
-            this.client = new Client({ auth: token });
-        }
+        const client = this.getClient();
 
         try {
             // 1. 기존 강사 페이지 검색
@@ -195,49 +193,58 @@ class NotionService {
                 // 3b. 새 페이지 생성
                 const pageTitle = instructorName ? `${instructorName} 강사 보드` : (videoTitle || '새 스크립트');
 
-                const properties = {
-                    '이름': {
-                        title: [{ text: { content: pageTitle } }]
-                    }
-                };
+                console.log('[Notion] 새 페이지 생성:', pageTitle);
 
-                // 태그, 선택 속성 추가 시도
+                // 기본 속성으로 먼저 시도
+                const properties = {};
+
+                // 제목 속성 이름 찾기 위해 데이터베이스 스키마 조회
                 try {
-                    const response = await this.client.pages.create({
-                        parent: { database_id: databaseId },
-                        properties: {
-                            ...properties,
-                            '태그': { multi_select: [{ name: '광고소재' }] },
-                            '선택': instructorName ? { select: { name: instructorName } } : undefined
-                        },
-                        children: newBlocks
-                    });
+                    const dbInfo = await client.databases.retrieve({ database_id: databaseId });
+                    let titlePropName = '이름';
 
-                    console.log('[Notion] 새 페이지 생성 완료:', response.id);
-                    return {
-                        success: true,
-                        pageId: response.id,
-                        url: response.url,
-                        isNewPage: true
+                    if (dbInfo.properties) {
+                        for (const [name, prop] of Object.entries(dbInfo.properties)) {
+                            if (prop.type === 'title') {
+                                titlePropName = name;
+                                break;
+                            }
+                        }
+                    }
+
+                    console.log('[Notion] 제목 속성 이름:', titlePropName);
+
+                    properties[titlePropName] = {
+                        title: [{ text: { content: pageTitle } }]
                     };
-                } catch (propError) {
-                    // 속성 오류 시 기본 속성만으로 재시도
-                    console.log('[Notion] 속성 오류, 기본 속성으로 재시도...');
 
-                    const response = await this.client.pages.create({
-                        parent: { database_id: databaseId },
-                        properties: properties,
-                        children: newBlocks
-                    });
-
-                    console.log('[Notion] 새 페이지 생성 완료 (기본 속성):', response.id);
-                    return {
-                        success: true,
-                        pageId: response.id,
-                        url: response.url,
-                        isNewPage: true
+                    // 태그, 선택 속성 있으면 추가
+                    if (dbInfo.properties['태그']) {
+                        properties['태그'] = { multi_select: [{ name: '광고소재' }] };
+                    }
+                    if (dbInfo.properties['선택'] && instructorName) {
+                        properties['선택'] = { select: { name: instructorName } };
+                    }
+                } catch (schemaError) {
+                    console.log('[Notion] 스키마 조회 실패, 기본값 사용');
+                    properties['이름'] = {
+                        title: [{ text: { content: pageTitle } }]
                     };
                 }
+
+                const response = await client.pages.create({
+                    parent: { database_id: databaseId },
+                    properties: properties,
+                    children: newBlocks
+                });
+
+                console.log('[Notion] 새 페이지 생성 완료:', response.id);
+                return {
+                    success: true,
+                    pageId: response.id,
+                    url: response.url,
+                    isNewPage: true
+                };
             }
         } catch (error) {
             console.error('[Notion] 저장 실패:', error.message);
@@ -269,7 +276,6 @@ class NotionService {
                 break;
             }
 
-            // 문장 끝에서 자르기 시도
             let splitIndex = remaining.lastIndexOf('. ', maxLength);
             if (splitIndex === -1 || splitIndex < maxLength / 2) {
                 splitIndex = remaining.lastIndexOf(' ', maxLength);
