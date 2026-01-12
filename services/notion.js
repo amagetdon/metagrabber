@@ -23,18 +23,26 @@ class NotionService {
         if (!token) {
             throw new Error('Notion API 토큰이 설정되지 않았습니다.');
         }
-        return new Client({ auth: token });
+        const notionClient = new Client({ auth: token });
+        console.log('[Notion] 클라이언트 생성됨, databases 존재:', !!notionClient.databases);
+        return notionClient;
     }
 
     // 데이터베이스에서 강사 이름으로 기존 페이지 검색
     async findInstructorPage(databaseId, instructorName) {
-        const client = this.getClient();
-
         try {
             console.log('[Notion] 강사 페이지 검색:', instructorName);
 
+            // 클라이언트 생성
+            const token = process.env.NOTION_API_TOKEN;
+            const notionClient = new Client({ auth: token });
+
+            console.log('[Notion] 클라이언트 타입:', typeof notionClient);
+            console.log('[Notion] databases 타입:', typeof notionClient.databases);
+            console.log('[Notion] databases.query 타입:', typeof notionClient.databases?.query);
+
             // 데이터베이스의 모든 페이지 조회
-            const response = await client.databases.query({
+            const response = await notionClient.databases.query({
                 database_id: databaseId
             });
 
