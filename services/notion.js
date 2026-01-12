@@ -35,8 +35,9 @@ class NotionService {
         } = data;
 
         try {
+            // 기본 속성 (제목은 필수)
             const properties = {
-                '제목': {
+                'Name': {
                     title: [
                         {
                             text: {
@@ -44,21 +45,22 @@ class NotionService {
                             }
                         }
                     ]
-                },
-                'URL': {
-                    url: videoUrl || null
-                },
-                '플랫폼': {
-                    select: {
-                        name: platform || 'Unknown'
-                    }
-                },
-                '날짜': {
-                    date: {
-                        start: new Date().toISOString()
-                    }
                 }
             };
+
+            // 선택적 속성들 - 에러 방지를 위해 try-catch로 개별 처리
+            // URL 속성이 있으면 추가
+            if (videoUrl) {
+                properties['URL'] = { url: videoUrl };
+            }
+
+            // 플랫폼 속성
+            if (platform) {
+                properties['플랫폼'] = { select: { name: platform } };
+            }
+
+            // 날짜 속성
+            properties['날짜'] = { date: { start: new Date().toISOString() } };
 
             // 블록(본문) 내용 구성
             const children = [];
@@ -166,6 +168,18 @@ class NotionService {
             };
         } catch (error) {
             console.error('[Notion] 저장 실패:', error.message);
+            console.error('[Notion] 상세 에러:', JSON.stringify(error.body || error, null, 2));
+
+            // 더 친화적인 에러 메시지
+            if (error.code === 'validation_error') {
+                throw new Error('노션 데이터베이스 속성을 확인해주세요. Name(제목) 속성이 필요합니다.');
+            }
+            if (error.code === 'object_not_found') {
+                throw new Error('노션 데이터베이스를 찾을 수 없습니다. Integration 연결을 확인해주세요.');
+            }
+            if (error.code === 'unauthorized') {
+                throw new Error('노션 API 토큰이 유효하지 않습니다.');
+            }
             throw error;
         }
     }
