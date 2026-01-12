@@ -1071,8 +1071,8 @@
                 <!-- 스크립트 생성 섹션 -->
                 <div id="scriptGenerateSection" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
                     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <select id="instructorSelect" style="padding: 10px 16px; font-size: 0.85rem; font-family: inherit; border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; background: rgba(16,185,129,0.1); color: #6ee7b7; outline: none; cursor: pointer; min-width: 150px;">
-                            <option value="">강사 선택...</option>
+                        <select id="instructorSelect" style="padding: 10px 16px; font-size: 0.85rem; font-family: inherit; border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; background: #fff; color: #333; outline: none; cursor: pointer; min-width: 150px;">
+                            <option value="" style="color: #333; background: #fff;">강사 선택...</option>
                         </select>
                         <button class="btn-copy-small" id="btnGenerateScript" onclick="generateScript()" style="background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.3)); border-color: rgba(16,185,129,0.4); color: #6ee7b7; padding: 10px 16px;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
@@ -1226,9 +1226,9 @@
         // 강사 선택 드롭다운 렌더링
         function renderInstructorSelect() {
             const select = document.getElementById('instructorSelect');
-            select.innerHTML = '<option value="">강사 선택...</option>';
+            select.innerHTML = '<option value="" style="color: #333; background: #fff;">강사 선택...</option>';
             instructorsList.forEach(inst => {
-                select.innerHTML += `<option value="${inst.id}">${inst.name}</option>`;
+                select.innerHTML += `<option value="${inst.id}" style="color: #333; background: #fff;">${inst.name}</option>`;
             });
         }
 
@@ -1577,6 +1577,8 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
+                    // 성공 시 URL 저장
+                    saveNotionUrl(notionUrl);
                     alert('Notion에 저장되었습니다!');
                     if (data.pageUrl) {
                         if (confirm('Notion 페이지를 열까요?')) {
@@ -1777,11 +1779,37 @@
             }
         }
 
+        // Notion URL 로드
+        async function loadNotionUrl() {
+            try {
+                const response = await fetch('/api/notion-url');
+                const data = await response.json();
+                if (data.success && data.url) {
+                    document.getElementById('notionDbUrl').value = data.url;
+                }
+            } catch (error) {
+                console.error('Notion URL 로드 실패:', error);
+            }
+        }
+
+        // Notion URL 저장
+        async function saveNotionUrl(url) {
+            try {
+                await fetch('/api/notion-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+            } catch (error) {
+                console.error('Notion URL 저장 실패:', error);
+            }
+        }
+
         // 페이지 로드 시 실행
         document.addEventListener('DOMContentLoaded', () => {
             checkTranscribeStatus();
             checkBrowserLoginAvailable();
-            checkNotionStatus();
+            loadNotionUrl();
             loadInstructors();
         });
 

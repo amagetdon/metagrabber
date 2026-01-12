@@ -146,6 +146,15 @@ class SupabaseService {
     async setPrompt(prompt) {
         return await this.setSession('script_prompt', prompt);
     }
+
+    // ===== Notion URL 관리 =====
+    async getNotionUrl() {
+        return await this.getSession('notion_db_url');
+    }
+
+    async setNotionUrl(url) {
+        return await this.setSession('notion_db_url', url);
+    }
 }
 
 module.exports = new SupabaseService();

@@ -731,6 +731,36 @@ app.post('/api/prompt', async (req, res) => {
     }
 });
 
+// ===== Notion URL 관리 =====
+
+// Notion URL 조회
+app.get('/api/notion-url', async (req, res) => {
+    try {
+        const url = await supabase.getNotionUrl();
+        return res.json({ success: true, url: url || '' });
+    } catch (error) {
+        console.error('[Server] Notion URL 조회 에러:', error.message);
+        return res.status(500).json({ error: 'Notion URL 조회 실패' });
+    }
+});
+
+// Notion URL 저장
+app.post('/api/notion-url', async (req, res) => {
+    const { url } = req.body;
+
+    try {
+        const success = await supabase.setNotionUrl(url || '');
+        if (success) {
+            return res.json({ success: true });
+        } else {
+            return res.status(500).json({ error: 'Notion URL 저장 실패' });
+        }
+    } catch (error) {
+        console.error('[Server] Notion URL 저장 에러:', error.message);
+        return res.status(500).json({ error: 'Notion URL 저장 실패' });
+    }
+});
+
 // ===== 스크립트 생성 API =====
 
 // 전사 텍스트 + 지침 + 강사 정보로 새 스크립트 생성
@@ -857,7 +887,19 @@ app.post('/api/notion/save', async (req, res) => {
         });
     } catch (error) {
         console.error('[Server] Notion 저장 에러:', error.message);
-        return res.status(500).json({ error: `Notion 저장 실패: ${error.message}` });
+        console.error('[Server] 상세:', error);
+
+        // 더 구체적인 에러 메시지
+        let errorMsg = error.message;
+        if (error.code === 'unauthorized') {
+            errorMsg = 'API 토큰이 유효하지 않습니다. Railway 환경변수에 NOTION_API_TOKEN을 확인해주세요.';
+        } else if (error.code === 'object_not_found') {
+            errorMsg = '데이터베이스를 찾을 수 없습니다. Integration이 데이터베이스에 연결되어 있는지 확인해주세요.';
+        } else if (error.message.includes('API 토큰')) {
+            errorMsg = 'NOTION_API_TOKEN 환경변수가 설정되지 않았습니다.';
+        }
+
+        return res.status(500).json({ error: errorMsg });
     }
 });
 
