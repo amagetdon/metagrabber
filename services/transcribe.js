@@ -239,9 +239,9 @@ class TranscribeService {
     }
 
     async downloadFile(url, filePath) {
-        // Facebook/Instagram CDN은 ffmpeg로 직접 다운로드 (403 우회)
-        if (url.includes('fbcdn.net') || url.includes('cdninstagram.com')) {
-            console.log('[Transcribe] Facebook/Instagram CDN - ffmpeg로 다운로드...');
+        // Facebook CDN은 ffmpeg로 직접 다운로드 (403 우회)
+        if (url.includes('fbcdn.net') && !url.includes('cdninstagram.com')) {
+            console.log('[Transcribe] Facebook CDN - ffmpeg로 다운로드...');
             return this.downloadWithFFmpeg(url, filePath);
         }
 
@@ -253,6 +253,9 @@ class TranscribeService {
         if (url.includes('googlevideo.com') || url.includes('youtube.com')) {
             headers['Referer'] = 'https://www.youtube.com/';
             headers['Origin'] = 'https://www.youtube.com';
+        } else if (url.includes('cdninstagram.com') || url.includes('instagram.com')) {
+            headers['Referer'] = 'https://www.instagram.com/';
+            headers['Origin'] = 'https://www.instagram.com';
         }
 
         const response = await axios({
