@@ -1092,8 +1092,228 @@ app.post('/api/notion/save', async (req, res) => {
     }
 });
 
-// ===== 병렬 처리 (Batch Process) API =====
+// ===== 병렬 처리 (Batch Process) API - SSE 스트리밍 =====
 app.post('/api/batch-process', async (req, res) => {
+    const { urls, instructorId } = req.body;
+
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+        return res.status(400).json({ error: 'URL 목록이 필요합니다' });
+    }
+
+    if (!instructorId) {
+        return res.status(400).json({ error: '강사를 선택해주세요' });
+    }
+
+    // SSE 헤더 설정
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const sendEvent = (type, data) => {
+        res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+    };
+
+    try {
+        // 강사 정보 미리 가져오기
+        const instructors = await supabase.getInstructors();
+        const instructor = instructors.find(i => i.id === instructorId);
+        if (!instructor) {
+            sendEvent('error', { error: '선택한 강사를 찾을 수 없습니다' });
+            res.end();
+            return;
+        }
+
+        // 지침 미리 가져오기
+        const prompt = await supabase.getPrompt();
+        if (!prompt) {
+            sendEvent('error', { error: '지침이 설정되지 않았습니다' });
+            res.end();
+            return;
+        }
+
+        // Notion DB URL 가져오기
+        const notionDbUrl = await supabase.getNotionUrl();
+        if (!notionDbUrl) {
+            sendEvent('error', { error: 'Notion 데이터베이스 URL이 설정되지 않았습니다' });
+            res.end();
+            return;
+        }
+
+        // DB URL에서 ID 추출
+        const notionDbIdMatch = notionDbUrl.match(/([a-f0-9]{32})|([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+        const databaseId = notionDbIdMatch ? notionDbIdMatch[0].replace(/-/g, '') : null;
+        if (!databaseId) {
+            sendEvent('error', { error: 'Notion 데이터베이스 ID를 추출할 수 없습니다' });
+            res.end();
+            return;
+        }
+
+        console.log(`[Batch] 병렬 처리 시작: ${urls.length}개 URL, 강사: ${instructor.name}`);
+        sendEvent('start', { total: urls.length });
+
+        const results = [];
+
+        // 순차 처리 (진행 상황 추적을 위해)
+        for (let i = 0; i < urls.length; i++) {
+            const url = urls[i].trim();
+            if (!url) {
+                results.push({ url, status: 'skipped', error: '빈 URL' });
+                sendEvent('progress', { index: i, status: 'skipped', current: i + 1, total: urls.length });
+                continue;
+            }
+
+            sendEvent('progress', { index: i, status: 'extracting', message: '비디오 추출 중...', current: i + 1, total: urls.length });
+
+            try {
+                // 1. 비디오 추출
+                let extractResult = null;
+                if (FacebookDownloader.isValidUrl(url)) {
+                    extractResult = await facebookDownloader.extractVideoUrl(url);
+                } else if (InstagramDownloader.isValidUrl(url)) {
+                    extractResult = await instagramDownloader.extractVideoUrl(url);
+                } else if (YouTubeDownloader.isValidUrl(url)) {
+                    extractResult = await youtubeDownloader.extractVideoUrl(url);
+                } else if (GoogleAdsDownloader.isValidUrl(url)) {
+                    const googleResult = await googleAdsDownloader.extractVideoUrl(url);
+                    if (googleResult && googleResult.isYouTube) {
+                        extractResult = await youtubeDownloader.extractVideoUrl(googleResult.video_url);
+                        if (extractResult) extractResult.platform = 'googleads';
+                    } else {
+                        extractResult = googleResult;
+                    }
+                } else {
+                    results.push({ url, status: 'failed', error: '지원하지 않는 URL' });
+                    sendEvent('progress', { index: i, status: 'failed', error: '지원하지 않는 URL', current: i + 1, total: urls.length });
+                    continue;
+                }
+
+                if (!extractResult || !extractResult.video_url) {
+                    results.push({ url, status: 'failed', error: '비디오 추출 실패' });
+                    sendEvent('progress', { index: i, status: 'failed', error: '비디오 추출 실패', current: i + 1, total: urls.length });
+                    continue;
+                }
+
+                console.log(`[Batch] [${i + 1}] 비디오 URL: ${extractResult.video_url.substring(0, 100)}...`);
+
+                // 2. 음성 전사
+                sendEvent('progress', { index: i, status: 'transcribing', message: '음성 전사 중...', current: i + 1, total: urls.length });
+                const transcribeResult = await transcribeService.transcribe(extractResult.video_url, 'ko');
+                if (!transcribeResult || !transcribeResult.text) {
+                    results.push({ url, status: 'failed', error: '음성 전사 실패' });
+                    sendEvent('progress', { index: i, status: 'failed', error: '음성 전사 실패', current: i + 1, total: urls.length });
+                    continue;
+                }
+
+                console.log(`[Batch] [${i + 1}] 전사 완료: ${transcribeResult.text.substring(0, 50)}...`);
+
+                // 3. 스크립트 생성
+                sendEvent('progress', { index: i, status: 'generating', message: '스크립트 생성 중...', current: i + 1, total: urls.length });
+
+                const apiKey = apiKeyPool.getAvailableKey();
+                if (!apiKey) {
+                    results.push({ url, status: 'failed', error: '사용 가능한 API 키 없음' });
+                    sendEvent('progress', { index: i, status: 'failed', error: 'API 키 없음', current: i + 1, total: urls.length });
+                    continue;
+                }
+
+                apiKeyPool.markInUse(apiKey);
+
+                const OpenAI = require('openai');
+                const openai = new OpenAI({ apiKey });
+
+                const systemPrompt = `${prompt}\n\n## 강사 정보\n- 이름: ${instructor.name}\n- 정보: ${instructor.info}`;
+
+                const gptResponse = await openai.chat.completions.create({
+                    model: 'gpt-5.2',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        {
+                            role: 'user',
+                            content: `다음은 음성 인식으로 생성된 스크립트입니다.\n\n아래 작업을 수행하고 **최종 결과물만** 출력해주세요:\n- 오타, 맞춤법, 띄어쓰기 수정\n- 말더듬이나 반복 표현 정리\n- 불필요한 추임새 제거 (음..., 어... 등)\n- 위 강사 정보에 맞게 스타일 변환\n\n중요: 교정본, 변환본 등 중간 과정 없이 최종 스크립트만 출력하세요.\n\n원본 스크립트:\n${transcribeResult.text}`
+                        }
+                    ],
+                    max_completion_tokens: 4000
+                });
+
+                apiKeyPool.markAvailable(apiKey);
+                const generatedScript = gptResponse.choices[0]?.message?.content || '';
+
+                // 4. Google Drive 업로드
+                let videoUrlToSave = extractResult.video_url;
+                if (googleDriveService.isAuthenticated()) {
+                    sendEvent('progress', { index: i, status: 'uploading', message: 'Drive 업로드 중...', current: i + 1, total: urls.length });
+                    try {
+                        const tempDir = path.join(__dirname, 'temp');
+                        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+                        const videoPath = path.join(tempDir, `batch_${Date.now()}_${i}.mp4`);
+
+                        const downloadResponse = await axios({
+                            method: 'GET', url: extractResult.video_url, responseType: 'stream', timeout: 120000,
+                            headers: { 'User-Agent': 'Mozilla/5.0' }
+                        });
+                        const writer = fs.createWriteStream(videoPath);
+                        downloadResponse.data.pipe(writer);
+                        await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+
+                        const uploadResult = await googleDriveService.uploadVideo(videoPath, extractResult.title || `영상_${i + 1}`, instructor.name);
+                        if (uploadResult?.directUrl) videoUrlToSave = uploadResult.directUrl;
+                        if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+                    } catch (driveError) {
+                        console.error(`[Batch] [${i + 1}] Drive 업로드 실패:`, driveError.message);
+                    }
+                }
+
+                // 5. 노션 저장
+                sendEvent('progress', { index: i, status: 'saving', message: '노션 저장 중...', current: i + 1, total: urls.length });
+                const notionResult = await notionService.saveToNotion({
+                    databaseId,
+                    videoUrl: videoUrlToSave,
+                    videoTitle: `[${instructor.name}] ${extractResult.title || `영상 ${i + 1}`}`,
+                    platform: extractResult.platform,
+                    transcript: transcribeResult.text,
+                    correctedText: generatedScript,
+                    instructorName: instructor.name
+                });
+
+                results.push({
+                    url,
+                    status: 'success',
+                    title: extractResult.title,
+                    platform: extractResult.platform,
+                    notionUrl: notionResult.url,
+                    originalTranscript: transcribeResult.text,
+                    generatedScript
+                });
+
+                sendEvent('progress', { index: i, status: 'success', title: extractResult.title, notionUrl: notionResult.url, current: i + 1, total: urls.length });
+
+            } catch (error) {
+                console.error(`[Batch] [${i + 1}] 에러:`, error.message);
+                results.push({ url, status: 'failed', error: error.message });
+                sendEvent('progress', { index: i, status: 'failed', error: error.message, current: i + 1, total: urls.length });
+            }
+        }
+
+        // 완료
+        const summary = {
+            total: urls.length,
+            success: results.filter(r => r.status === 'success').length,
+            failed: results.filter(r => r.status === 'failed').length,
+            skipped: results.filter(r => r.status === 'skipped').length
+        };
+
+        sendEvent('complete', { results, summary });
+        res.end();
+
+    } catch (error) {
+        sendEvent('error', { error: error.message });
+        res.end();
+    }
+});
+
+// ===== 병렬 처리 (Batch Process) API - 기존 버전 (백업) =====
+app.post('/api/batch-process-legacy', async (req, res) => {
     const { urls, instructorId } = req.body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
@@ -1169,6 +1389,7 @@ app.post('/api/batch-process', async (req, res) => {
             }
 
             console.log(`[Batch] [${index + 1}] 추출 완료: ${extractResult.platform}`);
+            console.log(`[Batch] [${index + 1}] 비디오 URL: ${extractResult.video_url.substring(0, 100)}...`);
 
             // 2. 음성 전사
             const transcribeResult = await transcribeService.transcribe(extractResult.video_url, 'ko');

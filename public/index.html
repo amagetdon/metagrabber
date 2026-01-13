@@ -2181,6 +2181,7 @@
             }
 
             batchProcessing = true;
+            lastInstructorId = instructorId;
             const startBtn = document.getElementById('batchStartBtn');
             startBtn.disabled = true;
             startBtn.innerHTML = `
@@ -2194,50 +2195,51 @@
             const resultsDiv = document.getElementById('batchResults');
             resultsDiv.classList.add('active');
 
-            // 초기 아이템 렌더링
-            renderBatchItems(urls.map(url => ({ url, status: 'pending' })));
+            // 초기 아이템 렌더링 (URL 포함)
+            const initialItems = urls.map(url => ({ url, status: 'pending' }));
+            renderBatchItems(initialItems);
 
             // 진행 상황 초기화
             updateBatchProgress(0, urls.length);
             document.getElementById('batchSummary').style.display = 'none';
 
             try {
+                // SSE 스트리밍으로 진행 상황 받기
                 const response = await fetch('/api/batch-process', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ urls, instructorId })
                 });
 
-                const data = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
 
-                if (data.success) {
-                    // 결과 저장 (재시도용)
-                    lastBatchResults = data.results;
-                    lastInstructorId = instructorId;
+                // 현재 진행 상태 추적
+                const currentItems = [...initialItems];
 
-                    // 결과 렌더링
-                    renderBatchItems(data.results);
-                    updateBatchProgress(urls.length, urls.length);
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
 
-                    // 요약 표시
-                    document.getElementById('batchSummary').style.display = 'flex';
-                    document.getElementById('batchSuccessCount').textContent = data.summary.success;
-                    document.getElementById('batchFailedCount').textContent = data.summary.failed;
-                    document.getElementById('batchPendingCount').textContent = data.summary.skipped;
+                    buffer += decoder.decode(value, { stream: true });
 
-                    document.getElementById('batchProgressText').textContent =
-                        `완료! 성공: ${data.summary.success}, 실패: ${data.summary.failed}`;
+                    // SSE 이벤트 파싱
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
 
-                    // 실패 항목이 있으면 재시도 버튼 표시
-                    const retryBtn = document.getElementById('batchRetryBtn');
-                    if (data.summary.failed > 0) {
-                        retryBtn.style.display = 'flex';
-                    } else {
-                        retryBtn.style.display = 'none';
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const event = JSON.parse(line.slice(6));
+                                handleBatchEvent(event, currentItems, urls);
+                            } catch (e) {
+                                console.error('SSE 파싱 에러:', e);
+                            }
+                        }
                     }
-                } else {
-                    alert('처리 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'));
                 }
+
             } catch (error) {
                 alert('서버 통신 오류: ' + error.message);
             } finally {
@@ -2247,6 +2249,66 @@
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
                     일괄 처리 시작
                 `;
+            }
+        }
+
+        // SSE 이벤트 핸들러
+        function handleBatchEvent(event, currentItems, urls) {
+            const { type, index, status, message, current, total, error, title, notionUrl, results, summary } = event;
+
+            if (type === 'start') {
+                console.log(`[Batch] 시작: ${total}개 URL`);
+            } else if (type === 'progress') {
+                // 진행 상황 업데이트
+                const statusText = getStatusText(status, message);
+                document.getElementById('batchProgressText').textContent = `${current} / ${total} - ${statusText}`;
+
+                const percent = (current / total) * 100;
+                document.getElementById('batchProgressFill').style.width = percent + '%';
+
+                // 해당 아이템 상태 업데이트
+                if (index !== undefined && currentItems[index]) {
+                    currentItems[index].status = status;
+                    if (error) currentItems[index].error = error;
+                    if (title) currentItems[index].title = title;
+                    if (notionUrl) currentItems[index].notionUrl = notionUrl;
+                    renderBatchItems(currentItems);
+                }
+            } else if (type === 'complete') {
+                // 완료
+                lastBatchResults = results;
+                batchResultsData = results;
+                renderBatchItems(results);
+
+                document.getElementById('batchProgressFill').style.width = '100%';
+                document.getElementById('batchProgressText').textContent =
+                    `완료! 성공: ${summary.success}, 실패: ${summary.failed}`;
+
+                // 요약 표시
+                document.getElementById('batchSummary').style.display = 'flex';
+                document.getElementById('batchSuccessCount').textContent = summary.success;
+                document.getElementById('batchFailedCount').textContent = summary.failed;
+                document.getElementById('batchPendingCount').textContent = summary.skipped;
+
+                // 실패 항목이 있으면 재시도 버튼 표시
+                const retryBtn = document.getElementById('batchRetryBtn');
+                retryBtn.style.display = summary.failed > 0 ? 'flex' : 'none';
+            } else if (type === 'error') {
+                alert('처리 중 오류: ' + event.error);
+            }
+        }
+
+        function getStatusText(status, message) {
+            if (message) return message;
+            switch (status) {
+                case 'extracting': return '비디오 추출 중...';
+                case 'transcribing': return '음성 전사 중...';
+                case 'generating': return '스크립트 생성 중...';
+                case 'uploading': return 'Drive 업로드 중...';
+                case 'saving': return '노션 저장 중...';
+                case 'success': return '완료';
+                case 'failed': return '실패';
+                default: return '처리 중...';
             }
         }
 
