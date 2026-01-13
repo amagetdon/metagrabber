@@ -217,7 +217,8 @@ class FacebookDownloader {
 
         if (!videoUrls.length) {
             console.log('[Facebook] 비디오 URL을 찾을 수 없습니다 (이미지만 발견)');
-            return null;
+            // 이미지 광고인 경우 특별한 에러 반환
+            return { error: 'IMAGE_AD', message: '이미지 광고로 의심됨' };
         }
 
         // HD 우선

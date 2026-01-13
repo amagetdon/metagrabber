@@ -1189,8 +1189,12 @@ app.post('/api/batch-process', async (req, res) => {
                 }
 
                 if (!extractResult || !extractResult.video_url) {
-                    results.push({ url, status: 'failed', error: '비디오 추출 실패' });
-                    sendEvent('progress', { index: i, status: 'failed', error: '비디오 추출 실패', current: i + 1, total: urls.length });
+                    // 이미지 광고 감지
+                    const errorMsg = extractResult?.error === 'IMAGE_AD'
+                        ? '비디오 추출 실패 (이미지 광고 의심)'
+                        : '비디오 추출 실패';
+                    results.push({ url, status: 'failed', error: errorMsg });
+                    sendEvent('progress', { index: i, status: 'failed', error: errorMsg, current: i + 1, total: urls.length });
                     continue;
                 }
 
