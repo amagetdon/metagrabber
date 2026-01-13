@@ -144,7 +144,9 @@ class FacebookDownloader {
                 // 이스케이프 문자 처리
                 url = url.replace(/\\u0025/g, '%')
                          .replace(/\\\//g, '/')
-                         .replace(/\\u0026/g, '&');
+                         .replace(/\\u0026/g, '&')
+                         .replace(/&amp;/g, '&')
+                         .replace(/&#38;/g, '&');
                 if (url.startsWith('http')) {
                     urls.push(url);
                 }
@@ -177,11 +179,23 @@ class FacebookDownloader {
         return 'Facebook Ad Video';
     }
 
+    // URL 정리 (HTML 인코딩 디코딩)
+    cleanUrl(url) {
+        return url
+            .replace(/\\u0025/g, '%')
+            .replace(/\\\//g, '/')
+            .replace(/\\u0026/g, '&')
+            .replace(/&amp;/g, '&')
+            .replace(/&#38;/g, '&')
+            .replace(/\\"/g, '"');
+    }
+
     selectBestVideoUrl(urls) {
         if (!urls.length) return null;
 
-        // 중복 제거
-        const uniqueUrls = [...new Set(urls)];
+        // URL 정리 및 중복 제거
+        const cleanedUrls = urls.map(u => this.cleanUrl(u));
+        const uniqueUrls = [...new Set(cleanedUrls)];
 
         // 이미지 URL 제외 (jpg, png, gif, webp 등)
         const videoUrls = uniqueUrls.filter(u => {
