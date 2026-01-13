@@ -702,6 +702,462 @@
             color: #8b5cf6;
         }
 
+        /* ===== Result Section Tabs ===== */
+        .result-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 14px;
+            margin-bottom: 20px;
+        }
+
+        .result-tab {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-tab::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .result-tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .result-tab:hover::before {
+            opacity: 1;
+        }
+
+        .result-tab.active {
+            color: #fff;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.4);
+        }
+
+        .result-tab.active::before {
+            opacity: 0;
+        }
+
+        .result-tab svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .result-tab-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            background: rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+
+        .result-tab.active .result-tab-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        /* Tab Panel */
+        .tab-panel {
+            display: none;
+            animation: tabFadeIn 0.3s ease;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Action Card */
+        .action-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .action-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .action-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .action-card-icon.green {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+            color: #6ee7b7;
+        }
+
+        .action-card-icon.purple {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2));
+            color: #a78bfa;
+        }
+
+        .action-card-icon.blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+            color: #60a5fa;
+        }
+
+        .action-card-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .action-card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .action-card-desc {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 2px;
+        }
+
+        /* Action Button Group */
+        .action-btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            color: #fff;
+            box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.4);
+        }
+
+        .action-btn.primary:hover {
+            box-shadow: 0 6px 16px -2px rgba(99, 102, 241, 0.5);
+        }
+
+        .action-btn.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            color: #fff;
+            box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.4);
+        }
+
+        .action-btn.success:hover {
+            box-shadow: 0 6px 16px -2px rgba(16, 185, 129, 0.5);
+        }
+
+        .action-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Content Box */
+        .content-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.8;
+            font-size: 0.9rem;
+            max-height: 280px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .content-box::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .content-box::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .content-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        .content-box::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Section Header */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #a78bfa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title.green {
+            color: #6ee7b7;
+        }
+
+        /* Quick Actions Bar */
+        .quick-actions {
+            display: flex;
+            gap: 6px;
+            padding: 8px;
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .quick-action-btn {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .quick-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .quick-action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .quick-action-btn.yellow { color: #fbbf24; }
+        .quick-action-btn.blue { color: #60a5fa; }
+        .quick-action-btn.purple { color: #a78bfa; }
+        .quick-action-btn.green { color: #6ee7b7; }
+
+        .quick-action-btn.yellow:hover { background: rgba(251, 191, 36, 0.15); }
+        .quick-action-btn.blue:hover { background: rgba(96, 165, 250, 0.15); }
+        .quick-action-btn.purple:hover { background: rgba(167, 139, 250, 0.15); }
+        .quick-action-btn.green:hover { background: rgba(110, 231, 183, 0.15); }
+
+        /* Inline Controls */
+        .inline-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .control-select {
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-select:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        .control-select:focus {
+            border-color: rgba(139, 92, 246, 0.6);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .control-select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        /* Checkbox Label */
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(66, 133, 244, 0.1);
+            border: 1px solid rgba(66, 133, 244, 0.25);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #4285f4;
+            transition: all 0.2s;
+        }
+
+        .checkbox-label:hover {
+            background: rgba(66, 133, 244, 0.15);
+            border-color: rgba(66, 133, 244, 0.4);
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4285f4;
+        }
+
+        .checkbox-label svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Notion Save Box */
+        .notion-save-box {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 14px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .notion-save-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .notion-save-header svg {
+            width: 20px;
+            height: 20px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .notion-save-header span {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .notion-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .notion-input {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .notion-input:focus {
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .notion-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .notion-hint {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 8px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .empty-state-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+        }
+
         /* Modal Styles */
         .modal {
             position: fixed;
@@ -1017,109 +1473,175 @@
         </div>
 
         <section class="result-section" id="resultSection">
-            <div class="video-preview">
-                <video id="videoPreview" controls></video>
-            </div>
-            <div class="video-info">
-                <h3 class="video-title" id="videoTitle"></h3>
-                <span class="video-platform" id="videoPlatform"></span>
-            </div>
-            <div class="download-options">
-                <button class="btn-download" onclick="downloadVideo()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                    </svg>
-                    다운로드
+            <!-- 탭 네비게이션 -->
+            <div class="result-tabs">
+                <button class="result-tab active" onclick="switchResultTab('media')" data-tab="media">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+                    미디어
                 </button>
-                <button class="btn-copy" onclick="copyUrl()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
-                    URL 복사
+                <button class="result-tab" onclick="switchResultTab('transcribe')" data-tab="transcribe">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+                    전사
+                    <span class="result-tab-badge" id="transcribeBadge" style="display: none;">완료</span>
                 </button>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn-transcribe" id="btnTranscribe" onclick="transcribeVideo()">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                        </svg>
-                        음성 전사
+                <button class="result-tab" onclick="switchResultTab('script')" data-tab="script">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    스크립트
+                    <span class="result-tab-badge" id="scriptBadge" style="display: none;">완료</span>
+                </button>
+            </div>
+
+            <!-- 탭 1: 미디어 -->
+            <div class="tab-panel active" id="tabPanelMedia">
+                <div class="video-preview">
+                    <video id="videoPreview" controls></video>
+                </div>
+                <div class="video-info">
+                    <h3 class="video-title" id="videoTitle"></h3>
+                    <span class="video-platform" id="videoPlatform"></span>
+                </div>
+                <div class="action-btn-group">
+                    <button class="action-btn success" onclick="downloadVideo()">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        다운로드
                     </button>
-                    <select id="transcribeLang" style="padding: 12px 16px; font-size: 0.85rem; font-family: inherit; border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; background: rgba(139,92,246,0.1); color: #a78bfa; outline: none; cursor: pointer;">
-                        <option value="">자동</option>
-                        <option value="ko">한국어</option>
-                        <option value="en">English</option>
-                        <option value="ja">日本語</option>
-                        <option value="zh">中文</option>
-                        <option value="es">Español</option>
-                    </select>
-                    <label id="googleDriveLabel" style="display: none; align-items: center; gap: 6px; padding: 10px 14px; background: rgba(66,133,244,0.1); border: 1px solid rgba(66,133,244,0.3); border-radius: 12px; cursor: pointer; font-size: 0.85rem; color: #4285f4;">
-                        <input type="checkbox" id="uploadToGoogleDrive" checked style="width: 16px; height: 16px; cursor: pointer;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7.71 3.5L1.15 15l4.58 7.5h13.54l4.58-7.5L17.29 3.5H7.71zm-.29 1h9.16l5.48 10H2.94l5.48-10zm4.58 2L6.52 15h10.96L12 6.5z"/></svg>
-                        Drive 저장
-                    </label>
+                    <button class="action-btn" onclick="copyUrl()">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        URL 복사
+                    </button>
                 </div>
             </div>
 
-            <!-- 전사 결과 -->
-            <div class="transcribe-section" id="transcribeSection" style="display: none;">
-                <div class="transcribe-header">
-                    <h4>음성 전사 결과</h4>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="btn-copy-small" id="btnSummarize" onclick="summarizeTranscript()" style="background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(217,119,6,0.2)); border-color: rgba(245,158,11,0.3); color: #fbbf24;">요약</button>
-                        <button class="btn-copy-small" id="btnTranslate" onclick="translateTranscript()" style="background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.2)); border-color: rgba(59,130,246,0.3); color: #60a5fa;">번역</button>
-                        <button class="btn-copy-small" id="btnCorrect" onclick="correctTranscript()" style="background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.2)); border-color: rgba(139,92,246,0.3); color: #a78bfa;">GPT 교정</button>
-                        <button class="btn-copy-small" onclick="copyTranscript()">복사</button>
+            <!-- 탭 2: 전사 -->
+            <div class="tab-panel" id="tabPanelTranscribe">
+                <!-- 전사 컨트롤 -->
+                <div class="action-card">
+                    <div class="action-card-header">
+                        <div class="action-card-icon purple">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+                        </div>
+                        <div>
+                            <div class="action-card-title">음성 전사</div>
+                            <div class="action-card-desc">영상의 음성을 텍스트로 변환합니다</div>
+                        </div>
+                    </div>
+                    <div class="inline-controls">
+                        <select id="transcribeLang" class="control-select">
+                            <option value="">자동 감지</option>
+                            <option value="ko">한국어</option>
+                            <option value="en">English</option>
+                            <option value="ja">日本語</option>
+                            <option value="zh">中文</option>
+                            <option value="es">Español</option>
+                        </select>
+                        <button class="action-btn primary" id="btnTranscribe" onclick="transcribeVideo()">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+                            전사 시작
+                        </button>
                     </div>
                 </div>
-                <div class="transcribe-content" id="transcribeContent"></div>
 
-                <!-- 스크립트 생성 섹션 -->
-                <div id="scriptGenerateSection" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <select id="instructorSelect" onchange="onInstructorChange()" style="padding: 10px 16px; font-size: 0.85rem; font-family: inherit; border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; background: #fff; color: #333; outline: none; cursor: pointer; min-width: 150px;">
-                            <option value="" style="color: #333; background: #fff;">강사 선택...</option>
-                        </select>
-                        <button class="btn-copy-small" id="btnGenerateScript" onclick="generateScript()" style="background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(5,150,105,0.3)); border-color: rgba(16,185,129,0.4); color: #6ee7b7; padding: 10px 16px;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
-                                <path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/>
-                            </svg>
-                            스크립트 생성
+                <!-- 전사 결과 -->
+                <div id="transcribeSection" style="display: none;">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                            전사 결과
+                        </div>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn yellow" id="btnSummarize" onclick="summarizeTranscript()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/></svg>
+                            요약
                         </button>
-                        <button class="btn-copy-small" onclick="showScriptSettings()" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); padding: 10px 16px;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
-                                <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-                            </svg>
+                        <button class="quick-action-btn blue" id="btnTranslate" onclick="translateTranscript()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                            번역
+                        </button>
+                        <button class="quick-action-btn purple" id="btnCorrect" onclick="correctTranscript()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            GPT 교정
+                        </button>
+                        <button class="quick-action-btn" onclick="copyTranscript()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                            복사
+                        </button>
+                    </div>
+                    <div class="content-box" id="transcribeContent"></div>
+                </div>
+
+                <!-- 빈 상태 -->
+                <div id="transcribeEmpty" class="empty-state">
+                    <svg class="empty-state-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+                    <p>위에서 전사 시작 버튼을 눌러주세요</p>
+                </div>
+            </div>
+
+            <!-- 탭 3: 스크립트 -->
+            <div class="tab-panel" id="tabPanelScript">
+                <!-- 스크립트 생성 컨트롤 -->
+                <div class="action-card">
+                    <div class="action-card-header">
+                        <div class="action-card-icon green">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg>
+                        </div>
+                        <div>
+                            <div class="action-card-title">스크립트 생성</div>
+                            <div class="action-card-desc">강사별 맞춤 스크립트를 생성합니다</div>
+                        </div>
+                    </div>
+                    <div class="inline-controls">
+                        <select id="instructorSelect" class="control-select" onchange="onInstructorChange()">
+                            <option value="">강사 선택...</option>
+                        </select>
+                        <label id="googleDriveLabel" class="checkbox-label" style="display: none;">
+                            <input type="checkbox" id="uploadToGoogleDrive" checked>
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.71 3.5L1.15 15l4.58 7.5h13.54l4.58-7.5L17.29 3.5H7.71zm-.29 1h9.16l5.48 10H2.94l5.48-10zm4.58 2L6.52 15h10.96L12 6.5z"/></svg>
+                            Drive 저장
+                        </label>
+                        <button class="action-btn success" id="btnGenerateScript" onclick="generateScript()">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg>
+                            생성
+                        </button>
+                        <button class="action-btn" onclick="showScriptSettings()">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
                             설정
                         </button>
                     </div>
                 </div>
 
                 <!-- 생성된 스크립트 결과 -->
-                <div id="generatedScriptSection" style="display: none; margin-top: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h4 style="color: #6ee7b7; font-size: 0.9rem; font-weight: 600; margin: 0;">
+                <div id="generatedScriptSection" style="display: none;">
+                    <div class="section-header">
+                        <div class="section-title green">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                             <span id="generatedInstructorName"></span> 버전 스크립트
-                        </h4>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn-copy-small" onclick="copyGeneratedScript()">복사</button>
                         </div>
+                        <button class="action-btn" onclick="copyGeneratedScript()" style="padding: 6px 12px;">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                            복사
+                        </button>
                     </div>
-                    <div id="generatedScriptContent" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.15); border-radius: 12px; padding: 20px; color: rgba(255,255,255,0.85); line-height: 1.8; font-size: 0.9rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
+                    <div class="content-box" id="generatedScriptContent" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.15);"></div>
 
-                    <!-- Notion 저장 섹션 -->
-                    <div id="notionSaveSection" style="display: none; margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                            <svg width="18" height="18" viewBox="0 0 100 100" fill="rgba(255,255,255,0.7)">
-                                <path d="M6.017 4.313l55.333 -4.087c6.797 -0.583 8.543 -0.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277 -1.553 6.807 -6.99 7.193l-64.25 3.888c-4.083 0.193 -6.023 -0.39 -8.16 -3.113l-12.433 -16.136c-2.333 -3.107 -3.307 -5.443 -3.307 -8.167v-65.607c0 -3.497 1.553 -6.413 5.443 -6.627z"/>
-                            </svg>
-                            <span style="color: rgba(255,255,255,0.8); font-weight: 500; font-size: 0.9rem;">Notion에 저장</span>
+                    <!-- Notion 저장 -->
+                    <div id="notionSaveSection" class="notion-save-box" style="display: none;">
+                        <div class="notion-save-header">
+                            <svg viewBox="0 0 100 100" fill="currentColor"><path d="M6.017 4.313l55.333 -4.087c6.797 -0.583 8.543 -0.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277 -1.553 6.807 -6.99 7.193l-64.25 3.888c-4.083 0.193 -6.023 -0.39 -8.16 -3.113l-12.433 -16.136c-2.333 -3.107 -3.307 -5.443 -3.307 -8.167v-65.607c0 -3.497 1.553 -6.413 5.443 -6.627z"/></svg>
+                            <span>Notion에 저장</span>
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="notionDbUrl" placeholder="Notion 데이터베이스 URL 붙여넣기" style="flex: 1; padding: 10px 14px; font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; background: rgba(0,0,0,0.3); color: #fff; outline: none;">
-                            <button id="btnSaveNotionNew" onclick="saveToNotionWithUrl()" style="padding: 10px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap;">저장</button>
+                        <div class="notion-input-group">
+                            <input type="text" id="notionDbUrl" class="notion-input" placeholder="Notion 데이터베이스 URL 붙여넣기">
+                            <button class="action-btn primary" id="btnSaveNotionNew" onclick="saveToNotionWithUrl()">저장</button>
                         </div>
-                        <p style="color: rgba(255,255,255,0.4); font-size: 0.75rem; margin-top: 8px; margin-bottom: 0;">예: https://www.notion.so/workspace/데이터베이스ID?v=...</p>
+                        <p class="notion-hint">예: https://www.notion.so/workspace/데이터베이스ID?v=...</p>
                     </div>
+                </div>
+
+                <!-- 빈 상태 -->
+                <div id="scriptEmpty" class="empty-state">
+                    <svg class="empty-state-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    <p>먼저 전사를 완료한 후 강사를 선택하세요</p>
                 </div>
             </div>
         </section>
@@ -1174,6 +1696,58 @@
         let currentCorrectedText = '';
         let currentSummary = '';
         let currentTranslatedText = '';
+
+        // 탭 전환 함수
+        function switchResultTab(tabName) {
+            // 모든 탭 버튼에서 active 제거
+            document.querySelectorAll('.result-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // 클릭한 탭 버튼에 active 추가
+            document.querySelector(`.result-tab[data-tab="${tabName}"]`).classList.add('active');
+
+            // 모든 탭 패널 숨기기
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            // 선택한 탭 패널 표시
+            const panelId = 'tabPanel' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
+            document.getElementById(panelId).classList.add('active');
+        }
+
+        // 전사 완료 시 뱃지 표시 및 빈 상태 숨기기
+        function updateTranscribeUI(hasContent) {
+            const badge = document.getElementById('transcribeBadge');
+            const emptyState = document.getElementById('transcribeEmpty');
+            const section = document.getElementById('transcribeSection');
+
+            if (hasContent) {
+                if (badge) badge.style.display = 'inline';
+                if (emptyState) emptyState.style.display = 'none';
+                if (section) section.style.display = 'block';
+            } else {
+                if (badge) badge.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'block';
+                if (section) section.style.display = 'none';
+            }
+        }
+
+        // 스크립트 생성 완료 시 뱃지 표시 및 빈 상태 숨기기
+        function updateScriptUI(hasContent) {
+            const badge = document.getElementById('scriptBadge');
+            const emptyState = document.getElementById('scriptEmpty');
+            const section = document.getElementById('generatedScriptSection');
+
+            if (hasContent) {
+                if (badge) badge.style.display = 'inline';
+                if (emptyState) emptyState.style.display = 'none';
+                if (section) section.style.display = 'block';
+            } else {
+                if (badge) badge.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'block';
+                if (section) section.style.display = 'none';
+            }
+        }
 
         // 페이지 로드 시 전사 기능 상태 확인
         async function checkTranscribeStatus() {
@@ -1501,8 +2075,8 @@
                     generatedScript = data.script;
                     document.getElementById('generatedInstructorName').textContent = data.instructor;
                     document.getElementById('generatedScriptContent').textContent = data.script;
-                    document.getElementById('generatedScriptSection').style.display = 'block';
                     document.getElementById('notionSaveSection').style.display = 'block';
+                    updateScriptUI(true);
 
                     // Google Drive 업로드 (체크박스 활성화 시)
                     const uploadToGoogleDrive = document.getElementById('uploadToGoogleDrive')?.checked || false;
@@ -2208,9 +2782,12 @@
             const content = document.getElementById('transcribeContent');
 
             btn.disabled = true;
-            btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0;"></div> 전사 중...';
+            btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0;"></div> 전사 중...';
             section.style.display = 'block';
             content.innerHTML = '<div class="transcribe-loading"><div class="spinner"></div> 음성을 텍스트로 변환하는 중... (1-2분 소요)</div>';
+            // 빈 상태 숨기기
+            const emptyState = document.getElementById('transcribeEmpty');
+            if (emptyState) emptyState.style.display = 'none';
 
             try {
                 // 제목을 prompt 힌트로 전달 (발음 인식 정확도 향상)
@@ -2234,6 +2811,7 @@
                 if (response.ok && data.success) {
                     currentTranscript = data.text;
                     content.textContent = data.text;
+                    updateTranscribeUI(true);
                     showSuccess('전사가 완료되었습니다.');
 
                     // 자동 교정 실행
@@ -2245,6 +2823,7 @@
                 } else {
                     const errorMsg = data.error || '알 수 없는 오류가 발생했습니다';
                     content.innerHTML = `<span style="color: #f87171;">오류: ${errorMsg}</span>`;
+                    updateTranscribeUI(true); // 에러 메시지도 표시
                     showError(errorMsg);
                 }
             } catch (error) {
@@ -2253,9 +2832,7 @@
                 console.error(error);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                </svg> 음성 전사`;
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15c1.66 0 2.99-1.34 2.99-3L15 6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 15 6.7 12H5c0 3.42 2.72 6.23 6 6.72V22h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg> 전사 시작`;
             }
         }
 
