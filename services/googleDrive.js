@@ -32,6 +32,14 @@ class GoogleDriveService {
                 const tokens = JSON.parse(tokensJson);
                 this.oauth2Client.setCredentials(tokens);
                 console.log('[GoogleDrive] 토큰 로드됨');
+
+                // 토큰 자동 갱신 설정
+                this.oauth2Client.on('tokens', async (newTokens) => {
+                    console.log('[GoogleDrive] 토큰 자동 갱신됨');
+                    // 기존 토큰과 병합 (refresh_token 유지)
+                    const mergedTokens = { ...tokens, ...newTokens };
+                    await this.saveTokens(mergedTokens);
+                });
             }
         } catch (e) {
             console.log('[GoogleDrive] 토큰 로드 실패:', e.message);
@@ -70,6 +78,14 @@ class GoogleDriveService {
         this.oauth2Client.setCredentials(tokens);
         await this.saveTokens(tokens);
 
+        // 토큰 자동 갱신 설정
+        this.oauth2Client.on('tokens', async (newTokens) => {
+            console.log('[GoogleDrive] 토큰 자동 갱신됨');
+            const mergedTokens = { ...tokens, ...newTokens };
+            await this.saveTokens(mergedTokens);
+        });
+
+        console.log('[GoogleDrive] 인증 완료 - 토큰 저장됨');
         return tokens;
     }
 
