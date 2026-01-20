@@ -1164,6 +1164,13 @@ app.post('/api/batch-process', async (req, res) => {
                 continue;
             }
 
+            // Instagram/Facebook 요청 간 딜레이 (rate limit 방지)
+            if (i > 0 && (url.includes('instagram.com') || url.includes('facebook.com'))) {
+                const delay = 2000 + Math.random() * 1000; // 2-3초 랜덤 딜레이
+                console.log(`[Batch] Rate limit 방지 딜레이: ${Math.round(delay)}ms`);
+                await new Promise(r => setTimeout(r, delay));
+            }
+
             sendEvent('progress', { index: i, status: 'extracting', message: '비디오 추출 중...', current: i + 1, total: urls.length });
 
             try {
@@ -1570,6 +1577,13 @@ ${transcribeResult.text}`
     // 1단계: 병렬로 준비 작업 수행
     const preparedResults = [];
     for (let i = 0; i < urls.length; i += CONCURRENCY) {
+        // 배치 간 딜레이 (Instagram/Facebook rate limit 방지)
+        if (i > 0) {
+            const delay = 2000 + Math.random() * 1000; // 2-3초 랜덤 딜레이
+            console.log(`[Batch] Rate limit 방지 딜레이: ${Math.round(delay)}ms`);
+            await new Promise(r => setTimeout(r, delay));
+        }
+
         const batch = urls.slice(i, i + CONCURRENCY);
         const batchResults = await Promise.allSettled(
             batch.map((url, batchIndex) => prepareUrl(url, i + batchIndex))
