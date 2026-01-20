@@ -23,6 +23,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/temp', express.static(path.join(__dirname, 'temp'))); // temp 폴더 서빙 (광고 비디오용)
 
 // 다운로드 폴더 생성
 const downloadDir = path.join(__dirname, 'downloads');
@@ -334,7 +335,7 @@ initAPIKeyPool();
 
 // 음성 전사 API
 app.post('/api/transcribe', async (req, res) => {
-    const { videoUrl, language = 'ko', prompt = '' } = req.body;
+    const { videoUrl, language = 'ko', prompt = '', originalUrl = '' } = req.body;
 
     if (!videoUrl) {
         return res.status(400).json({ error: '비디오 URL이 필요합니다' });
@@ -353,7 +354,7 @@ app.post('/api/transcribe', async (req, res) => {
             console.log('[Server] Prompt 힌트:', prompt.substring(0, 100));
         }
 
-        const result = await transcribeService.transcribe(videoUrl, language, prompt);
+        const result = await transcribeService.transcribe(videoUrl, language, prompt, originalUrl);
 
         return res.json(result);
     } catch (error) {
@@ -1199,7 +1200,7 @@ app.post('/api/batch-process', async (req, res) => {
 
                 // 2. 음성 전사
                 sendEvent('progress', { index: i, status: 'transcribing', message: '음성 전사 중...', current: i + 1, total: urls.length });
-                const transcribeResult = await transcribeService.transcribe(extractResult.video_url, 'ko');
+                const transcribeResult = await transcribeService.transcribe(extractResult.video_url, 'ko', '', url);
                 if (!transcribeResult || !transcribeResult.text) {
                     results.push({ url, status: 'failed', error: '음성 전사 실패' });
                     sendEvent('progress', { index: i, status: 'failed', error: '음성 전사 실패', current: i + 1, total: urls.length });
@@ -1247,18 +1248,29 @@ app.post('/api/batch-process', async (req, res) => {
                     try {
                         const tempDir = path.join(__dirname, 'temp');
                         if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-                        const videoPath = path.join(tempDir, `batch_${Date.now()}_${i}.mp4`);
 
-                        const downloadResponse = await axios({
-                            method: 'GET', url: extractResult.video_url, responseType: 'stream', timeout: 120000,
-                            headers: { 'User-Agent': 'Mozilla/5.0' }
-                        });
-                        const writer = fs.createWriteStream(videoPath);
-                        downloadResponse.data.pipe(writer);
-                        await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+                        let videoPath;
+                        let isLocalAdVideo = false;
+
+                        // 로컬 광고 비디오인 경우
+                        if (extractResult.isLocalVideo && extractResult.local_path) {
+                            videoPath = extractResult.local_path;
+                            isLocalAdVideo = true;
+                            console.log(`[Batch] [${i + 1}] 로컬 광고 비디오 사용: ${videoPath}`);
+                        } else {
+                            videoPath = path.join(tempDir, `batch_${Date.now()}_${i}.mp4`);
+                            const downloadResponse = await axios({
+                                method: 'GET', url: extractResult.video_url, responseType: 'stream', timeout: 120000,
+                                headers: { 'User-Agent': 'Mozilla/5.0' }
+                            });
+                            const writer = fs.createWriteStream(videoPath);
+                            downloadResponse.data.pipe(writer);
+                            await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+                        }
 
                         const uploadResult = await googleDriveService.uploadVideo(videoPath, extractResult.title || `영상_${i + 1}`, instructor.name);
                         if (uploadResult?.directUrl) videoUrlToSave = uploadResult.directUrl;
+                        // 업로드 완료 후 temp 파일 삭제
                         if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
                     } catch (driveError) {
                         console.error(`[Batch] [${i + 1}] Drive 업로드 실패:`, driveError.message);
@@ -1393,7 +1405,7 @@ app.post('/api/batch-process-legacy', async (req, res) => {
             console.log(`[Batch] [${index + 1}] 비디오 URL: ${extractResult.video_url.substring(0, 100)}...`);
 
             // 2. 음성 전사
-            const transcribeResult = await transcribeService.transcribe(extractResult.video_url, 'ko');
+            const transcribeResult = await transcribeService.transcribe(extractResult.video_url, 'ko', '', trimmedUrl);
             if (!transcribeResult || !transcribeResult.text) {
                 return { url: trimmedUrl, status: 'failed', error: '음성 전사 실패' };
             }
@@ -1485,28 +1497,36 @@ ${transcribeResult.text}`
                     if (!fs.existsSync(tempDir)) {
                         fs.mkdirSync(tempDir, { recursive: true });
                     }
-                    const videoFileName = `batch_${Date.now()}_${index}.mp4`;
-                    const videoPath = path.join(tempDir, videoFileName);
+                    let videoPath;
 
-                    // 비디오 다운로드
-                    const response = await axios({
-                        method: 'GET',
-                        url: extractResult.video_url,
-                        responseType: 'stream',
-                        timeout: 120000,
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                            'Referer': extractResult.platform === 'instagram' ? 'https://www.instagram.com/' :
-                                       extractResult.platform === 'facebook' ? 'https://www.facebook.com/' : ''
-                        }
-                    });
+                    // 로컬 광고 비디오인 경우
+                    if (extractResult.isLocalVideo && extractResult.local_path) {
+                        videoPath = extractResult.local_path;
+                        console.log(`[Batch] [${index + 1}] 로컬 광고 비디오 사용: ${videoPath}`);
+                    } else {
+                        const videoFileName = `batch_${Date.now()}_${index}.mp4`;
+                        videoPath = path.join(tempDir, videoFileName);
 
-                    const writer = fs.createWriteStream(videoPath);
-                    response.data.pipe(writer);
-                    await new Promise((resolve, reject) => {
-                        writer.on('finish', resolve);
-                        writer.on('error', reject);
-                    });
+                        // 비디오 다운로드
+                        const response = await axios({
+                            method: 'GET',
+                            url: extractResult.video_url,
+                            responseType: 'stream',
+                            timeout: 120000,
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Referer': extractResult.platform === 'instagram' ? 'https://www.instagram.com/' :
+                                           extractResult.platform === 'facebook' ? 'https://www.facebook.com/' : ''
+                            }
+                        });
+
+                        const writer = fs.createWriteStream(videoPath);
+                        response.data.pipe(writer);
+                        await new Promise((resolve, reject) => {
+                            writer.on('finish', resolve);
+                            writer.on('error', reject);
+                        });
+                    }
 
                     // Google Drive 업로드
                     const uploadResult = await googleDriveService.uploadVideo(

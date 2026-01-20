@@ -3474,6 +3474,7 @@
 
                 if (response.ok && data.success) {
                     currentVideoData = data.data;
+                    currentVideoData.originalUrl = url; // 원본 URL 저장
                     lastFailedUrl = null; // 성공시 초기화
                     document.getElementById('loginBanner').style.display = 'none';
                     displayResult(data.data);
@@ -3676,7 +3677,8 @@
                     body: JSON.stringify({
                         videoUrl: currentVideoData.video_url,
                         language: selectedLang,  // 빈 문자열이면 자동 감지
-                        prompt: prompt
+                        prompt: prompt,
+                        originalUrl: currentVideoData.originalUrl || ''  // Instagram 광고용 원본 URL
                     })
                 });
 

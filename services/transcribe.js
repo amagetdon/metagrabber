@@ -5,6 +5,7 @@ const axios = require('axios');
 const { spawn } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const apiKeyPool = require('./apiKeyPool');
+const InstagramDownloader = require('../downloaders/instagram');
 
 // Docker 환경에서는 시스템 ffmpeg 사용, 로컬에서는 ffmpeg-static 사용
 const getFFmpegPath = () => {
@@ -26,18 +27,31 @@ class TranscribeService {
         }
     }
 
-    async transcribe(videoUrl, language = '', prompt = '') {
+    async transcribe(videoUrl, language = '', prompt = '', originalUrl = '') {
         // UUID로 파일명 생성 (동시 요청 충돌 방지)
         const fileId = uuidv4();
         const videoPath = path.join(this.tempDir, `video_${fileId}.mp4`);
         const audioPath = path.join(this.tempDir, `audio_${fileId}.mp3`);
         const chunkPaths = [];
 
+        // Instagram 원본 URL 저장 (Puppeteer/yt-dlp fallback용)
+        this.originalInstagramUrl = originalUrl;
+
         try {
-            // HLS 스트림(m3u8)인 경우 ffmpeg로 직접 처리
+            // 로컬 파일인 경우 (광고 비디오 등)
+            const isLocalVideo = videoUrl.startsWith('/temp/');
             const isHLS = videoUrl.includes('.m3u8') || videoUrl.includes('manifest');
 
-            if (isHLS) {
+            if (isLocalVideo) {
+                const localPath = path.join(__dirname, '..', videoUrl);
+                console.log('[Transcribe] 로컬 비디오 사용:', localPath);
+                if (fs.existsSync(localPath)) {
+                    console.log('[Transcribe] 오디오 추출 중...');
+                    await this.extractAudio(localPath, audioPath);
+                } else {
+                    throw new Error('로컬 비디오 파일을 찾을 수 없습니다');
+                }
+            } else if (isHLS) {
                 console.log('[Transcribe] HLS 스트림 감지 - ffmpeg로 직접 오디오 추출...');
                 await this.extractAudioFromStream(videoUrl, audioPath);
             } else {
@@ -96,8 +110,9 @@ class TranscribeService {
             console.error('[Transcribe] 에러:', error.message);
             throw error;
         } finally {
-            // 임시 파일 정리 (HLS는 videoPath 생성 안함)
-            if (!videoUrl.includes('.m3u8') && !videoUrl.includes('manifest')) {
+            // 임시 파일 정리 (HLS와 로컬 광고 비디오는 videoPath 삭제 안함)
+            const isLocalVideo = videoUrl.startsWith('/temp/');
+            if (!videoUrl.includes('.m3u8') && !videoUrl.includes('manifest') && !isLocalVideo) {
                 this.cleanupFile(videoPath);
             }
             this.cleanupFile(audioPath);
@@ -242,7 +257,45 @@ class TranscribeService {
         // Facebook CDN은 ffmpeg로 직접 다운로드 (403 우회)
         if (url.includes('fbcdn.net') && !url.includes('cdninstagram.com')) {
             console.log('[Transcribe] Facebook CDN - ffmpeg로 다운로드...');
-            return this.downloadWithFFmpeg(url, filePath);
+            return this.downloadWithFFmpeg(url, filePath, 'https://www.facebook.com/');
+        }
+
+        // Instagram CDN은 쿠키와 함께 다운로드 시도, 실패 시 Puppeteer/yt-dlp fallback
+        if (url.includes('cdninstagram.com') || url.includes('instagram.com')) {
+            console.log('[Transcribe] Instagram CDN - axios로 다운로드...');
+            const instagramDownloader = new InstagramDownloader();
+            const sessionid = await instagramDownloader.loadSessionId();
+
+            try {
+                await this.downloadWithAxios(url, filePath, sessionid);
+                return;
+            } catch (axiosError) {
+                console.log('[Transcribe] axios 다운로드 실패, Puppeteer 시도...');
+                console.log('[Transcribe] 원본 Instagram URL:', this.originalInstagramUrl || '(없음)');
+
+                // 원본 URL이 있어야 Puppeteer/yt-dlp 사용 가능
+                const originalUrl = this.originalInstagramUrl;
+                if (!originalUrl || originalUrl.includes('cdninstagram.com')) {
+                    throw new Error('Instagram 광고 콘텐츠는 원본 URL이 필요합니다');
+                }
+
+                // Puppeteer 시도 (원본 Instagram URL 필요)
+                const puppeteerResult = await instagramDownloader.downloadWithPuppeteer(
+                    originalUrl,
+                    filePath
+                );
+                if (puppeteerResult) return;
+
+                // yt-dlp 시도
+                console.log('[Transcribe] Puppeteer 실패, yt-dlp 시도...');
+                const ytdlpResult = await instagramDownloader.downloadWithYtdlp(
+                    originalUrl,
+                    filePath
+                );
+                if (ytdlpResult) return;
+
+                throw new Error('Instagram 비디오 다운로드 실패 (axios, Puppeteer, yt-dlp 모두 실패)');
+            }
         }
 
         // 플랫폼별 Referer 헤더 추가 (403 방지)
@@ -283,11 +336,67 @@ class TranscribeService {
         });
     }
 
+    // Instagram CDN axios 다운로드 (쿠키 포함)
+    async downloadWithAxios(url, filePath, sessionid) {
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://www.instagram.com/',
+            'Origin': 'https://www.instagram.com',
+        };
+
+        if (sessionid) {
+            const dsUserId = sessionid.split(':')[0];
+            headers['Cookie'] = `sessionid=${sessionid}; ds_user_id=${dsUserId}`;
+            console.log('[Transcribe] Instagram 쿠키 추가됨');
+        }
+
+        try {
+            const response = await axios({
+                method: 'GET',
+                url: url,
+                responseType: 'stream',
+                headers,
+                timeout: 600000,
+                maxRedirects: 5,
+            });
+
+            const writer = fs.createWriteStream(filePath);
+            response.data.pipe(writer);
+
+            return new Promise((resolve, reject) => {
+                writer.on('finish', () => {
+                    const stats = fs.statSync(filePath);
+                    console.log(`[Transcribe] Instagram 다운로드 완료: ${stats.size} bytes`);
+                    if (stats.size < 1000) {
+                        reject(new Error('다운로드된 파일이 너무 작습니다.'));
+                    } else {
+                        resolve();
+                    }
+                });
+                writer.on('error', reject);
+            });
+        } catch (error) {
+            console.log(`[Transcribe] axios 다운로드 실패: ${error.response?.status || error.message}`);
+            throw error;
+        }
+    }
+
     // ffmpeg로 비디오 다운로드 (CDN 제한 우회)
-    async downloadWithFFmpeg(url, filePath) {
+    async downloadWithFFmpeg(url, filePath, referer = 'https://www.facebook.com/', sessionid = null) {
         return new Promise((resolve, reject) => {
+            let headers = `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nReferer: ${referer}\r\n`;
+
+            // Instagram 세션ID가 있으면 쿠키 추가
+            if (sessionid) {
+                const dsUserId = sessionid.split(':')[0];
+                headers += `Cookie: sessionid=${sessionid}; ds_user_id=${dsUserId}\r\n`;
+                console.log('[Transcribe] Instagram 쿠키 추가됨');
+            }
+
             const ffmpeg = spawn(ffmpegPath, [
-                '-headers', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nReferer: https://www.facebook.com/\r\n',
+                '-headers', headers,
                 '-i', url,
                 '-c', 'copy',
                 '-y',
