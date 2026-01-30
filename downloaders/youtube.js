@@ -87,7 +87,7 @@ class YouTubeDownloader {
                 dumpSingleJson: true,
                 noCheckCertificates: true,
                 noWarnings: true,
-                format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                skipDownload: true,
             };
 
             const cookiesPath = await this.getCookiesPath();
