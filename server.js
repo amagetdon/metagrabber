@@ -187,6 +187,13 @@ app.post('/api/youtube/cookie', async (req, res) => {
             await supabase.setSession('youtube_cookie', cookie);
         }
 
+        // 로컬 파일도 갱신 (이전 캐시 덮어쓰기)
+        const cookiesPath = path.join(__dirname, 'youtube_cookies.txt');
+        const YouTubeDownloader = require('./downloaders/youtube');
+        const yt = new YouTubeDownloader();
+        const netscape = yt.convertJsonToNetscape(cookie);
+        fs.writeFileSync(cookiesPath, netscape || cookie, 'utf8');
+
         return res.json({ success: true, message: 'YouTube 쿠키가 저장되었습니다!' });
     } catch (error) {
         console.error('YouTube 쿠키 저장 에러:', error);
