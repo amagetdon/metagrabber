@@ -4,9 +4,8 @@
   "description": "Facebook & Instagram Video Downloader",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "postinstall": "node scripts/update-ytdlp.js"
+    "start": "node scripts/update-ytdlp.js && node server.js",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "@notionhq/client": "^5.6.0",
