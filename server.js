@@ -162,6 +162,38 @@ app.get('/api/instagram/status', async (req, res) => {
     });
 });
 
+// YouTube 쿠키 상태 확인
+app.get('/api/youtube/cookie/status', async (req, res) => {
+    let exists = false;
+
+    if (supabase.enabled) {
+        const session = await supabase.getSession('youtube_cookie');
+        if (session) exists = true;
+    }
+
+    return res.json({ exists });
+});
+
+// YouTube 쿠키 저장
+app.post('/api/youtube/cookie', async (req, res) => {
+    const { cookie } = req.body;
+
+    if (!cookie) {
+        return res.status(400).json({ error: '쿠키 값이 필요합니다' });
+    }
+
+    try {
+        if (supabase.enabled) {
+            await supabase.setSession('youtube_cookie', cookie);
+        }
+
+        return res.json({ success: true, message: 'YouTube 쿠키가 저장되었습니다!' });
+    } catch (error) {
+        console.error('YouTube 쿠키 저장 에러:', error);
+        return res.status(500).json({ error: '쿠키 저장 실패' });
+    }
+});
+
 // 브라우저 로그인 가능 여부 (Railway 등 headless 환경 체크)
 const isBrowserLoginAvailable = !process.env.RAILWAY_ENVIRONMENT && !process.env.RENDER;
 
