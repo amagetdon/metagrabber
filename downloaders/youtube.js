@@ -4,15 +4,49 @@ const path = require('path');
 const supabase = require('../services/supabase');
 
 class YouTubeDownloader {
+    convertJsonToNetscape(jsonStr) {
+        try {
+            const cookies = JSON.parse(jsonStr);
+            if (!Array.isArray(cookies)) return null;
+
+            const lines = ['# Netscape HTTP Cookie File'];
+            for (const c of cookies) {
+                const domain = c.domain || '.youtube.com';
+                const flag = domain.startsWith('.') ? 'TRUE' : 'FALSE';
+                const path = c.path || '/';
+                const secure = c.secure ? 'TRUE' : 'FALSE';
+                const expiry = c.expirationDate ? Math.floor(c.expirationDate) : '0';
+                const name = c.name;
+                const value = c.value;
+                if (name && value) {
+                    lines.push(`${domain}\t${flag}\t${path}\t${secure}\t${expiry}\t${name}\t${value}`);
+                }
+            }
+            return lines.join('\n');
+        } catch {
+            return null;
+        }
+    }
+
     async getCookiesPath() {
         const cookiesPath = path.join(__dirname, '..', 'youtube_cookies.txt');
 
-        if (fs.existsSync(cookiesPath)) return cookiesPath;
+        if (fs.existsSync(cookiesPath)) {
+            const content = fs.readFileSync(cookiesPath, 'utf8').trim();
+            if (content.startsWith('[')) {
+                const netscape = this.convertJsonToNetscape(content);
+                if (netscape) {
+                    fs.writeFileSync(cookiesPath, netscape, 'utf8');
+                }
+            }
+            return cookiesPath;
+        }
 
         if (supabase.enabled) {
             const cookie = await supabase.getSession('youtube_cookie');
             if (cookie) {
-                fs.writeFileSync(cookiesPath, cookie, 'utf8');
+                const netscape = this.convertJsonToNetscape(cookie);
+                fs.writeFileSync(cookiesPath, netscape || cookie, 'utf8');
                 return cookiesPath;
             }
         }
