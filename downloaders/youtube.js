@@ -82,8 +82,14 @@ class YouTubeDownloader {
         try {
             const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
+            // yt-dlp 버전 확인
+            try {
+                const ver = await ytdlp('--version');
+                console.log('[YouTube] yt-dlp 버전:', ver.toString().trim());
+            } catch {}
+
             // yt-dlp로 정보 가져오기
-            const ytdlpOptions = {
+            const baseOptions = {
                 dumpSingleJson: true,
                 noCheckCertificates: true,
                 noWarnings: true,
@@ -91,12 +97,19 @@ class YouTubeDownloader {
             };
 
             const cookiesPath = await this.getCookiesPath();
-            if (cookiesPath) {
-                ytdlpOptions.cookies = cookiesPath;
-                console.log('[YouTube] 쿠키 파일 사용:', cookiesPath);
-            }
+            let info;
 
-            const info = await ytdlp(videoUrl, ytdlpOptions);
+            if (cookiesPath) {
+                try {
+                    console.log('[YouTube] 쿠키로 시도...');
+                    info = await ytdlp(videoUrl, { ...baseOptions, cookies: cookiesPath });
+                } catch (cookieErr) {
+                    console.log('[YouTube] 쿠키 실패, 쿠키 없이 재시도:', cookieErr.message?.split('\n')[0]);
+                    info = await ytdlp(videoUrl, baseOptions);
+                }
+            } else {
+                info = await ytdlp(videoUrl, baseOptions);
+            }
 
             console.log(`[YouTube] 제목: ${info.title}`);
 
