@@ -87,7 +87,6 @@ class YouTubeDownloader {
                 dumpSingleJson: true,
                 noCheckCertificates: true,
                 noWarnings: true,
-                preferFreeFormats: true,
             };
 
             const cookiesPath = await this.getCookiesPath();
