@@ -1,6 +1,25 @@
 const ytdlp = require('yt-dlp-exec');
+const fs = require('fs');
+const path = require('path');
+const supabase = require('../services/supabase');
 
 class YouTubeDownloader {
+    async getCookiesPath() {
+        const cookiesPath = path.join(__dirname, '..', 'youtube_cookies.txt');
+
+        if (fs.existsSync(cookiesPath)) return cookiesPath;
+
+        if (supabase.enabled) {
+            const cookie = await supabase.getSession('youtube_cookie');
+            if (cookie) {
+                fs.writeFileSync(cookiesPath, cookie, 'utf8');
+                return cookiesPath;
+            }
+        }
+
+        return null;
+    }
+
     extractVideoId(url) {
         const patterns = [
             /youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})/,
@@ -30,12 +49,20 @@ class YouTubeDownloader {
             const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
             // yt-dlp로 정보 가져오기
-            const info = await ytdlp(videoUrl, {
+            const ytdlpOptions = {
                 dumpSingleJson: true,
                 noCheckCertificates: true,
                 noWarnings: true,
                 preferFreeFormats: true,
-            });
+            };
+
+            const cookiesPath = await this.getCookiesPath();
+            if (cookiesPath) {
+                ytdlpOptions.cookies = cookiesPath;
+                console.log('[YouTube] 쿠키 파일 사용:', cookiesPath);
+            }
+
+            const info = await ytdlp(videoUrl, ytdlpOptions);
 
             console.log(`[YouTube] 제목: ${info.title}`);
 
