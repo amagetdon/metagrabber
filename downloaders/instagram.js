@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const ytdlpExec = require('yt-dlp-exec');
 const supabase = require('../services/supabase');
 
 // Puppeteer lazy load
@@ -556,54 +556,32 @@ class InstagramDownloader {
     async downloadWithYtdlp(url, outputPath) {
         console.log('[Instagram] yt-dlp로 다운로드 시도...');
 
-        return new Promise((resolve) => {
-            const sessionid = this.loadSessionId();
+        try {
+            const options = {
+                noCheckCertificates: true,
+                output: outputPath,
+                noPlaylist: true,
+            };
 
-            const args = [
-                '--no-check-certificate',
-                '-o', outputPath,
-                '--no-playlist',
-            ];
-
-            // 쿠키 파일이 있으면 사용
             const cookiesPath = path.join(__dirname, '..', 'instagram_cookies.txt');
             if (fs.existsSync(cookiesPath)) {
-                args.push('--cookies', cookiesPath);
+                options.cookies = cookiesPath;
             }
 
-            args.push(url);
+            await ytdlpExec(url, options);
 
-            const ytdlp = spawn('yt-dlp', args);
+            if (fs.existsSync(outputPath)) {
+                const stats = fs.statSync(outputPath);
+                console.log(`[Instagram] yt-dlp 다운로드 완료: ${stats.size} bytes`);
+                return outputPath;
+            }
 
-            let stderr = '';
-            ytdlp.stderr.on('data', (data) => {
-                stderr += data.toString();
-            });
-
-            ytdlp.stdout.on('data', (data) => {
-                console.log('[yt-dlp]', data.toString().trim());
-            });
-
-            ytdlp.on('close', (code) => {
-                if (code === 0 && fs.existsSync(outputPath)) {
-                    const stats = fs.statSync(outputPath);
-                    console.log(`[Instagram] yt-dlp 다운로드 완료: ${stats.size} bytes`);
-                    resolve(outputPath);
-                } else {
-                    console.log('[Instagram] yt-dlp 실패:', stderr.slice(-300));
-                    resolve(null);
-                }
-            });
-
-            ytdlp.on('error', (err) => {
-                if (err.code === 'ENOENT') {
-                    console.log('[Instagram] yt-dlp가 설치되어 있지 않습니다');
-                } else {
-                    console.log('[Instagram] yt-dlp 에러:', err.message);
-                }
-                resolve(null);
-            });
-        });
+            console.log('[Instagram] yt-dlp 완료했지만 파일 없음');
+            return null;
+        } catch (err) {
+            console.log('[Instagram] yt-dlp 에러:', err.message);
+            return null;
+        }
     }
 }
 
