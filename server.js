@@ -166,7 +166,14 @@ app.get('/api/instagram/status', async (req, res) => {
 app.get('/api/youtube/cookie/status', async (req, res) => {
     let exists = false;
 
-    if (supabase.enabled) {
+    // 로컬 파일 확인
+    const cookiesPath = path.join(__dirname, 'youtube_cookies.txt');
+    if (fs.existsSync(cookiesPath)) {
+        exists = true;
+    }
+
+    // Supabase 확인
+    if (!exists && supabase.enabled) {
         const session = await supabase.getSession('youtube_cookie');
         if (session) exists = true;
     }
