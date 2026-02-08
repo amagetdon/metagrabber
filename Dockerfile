@@ -29,6 +29,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
 
+# yt-dlp PyInstaller 바이너리 설치 (JS 컴포넌트 내장)
+RUN curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o /app/node_modules/yt-dlp-exec/bin/yt-dlp \
+    && chmod +x /app/node_modules/yt-dlp-exec/bin/yt-dlp
+
 # 소스 복사
 COPY . .
 
