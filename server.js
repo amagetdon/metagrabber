@@ -181,6 +181,29 @@ app.get('/api/youtube/cookie/status', async (req, res) => {
     return res.json({ exists });
 });
 
+// YouTube 쿠키 삭제
+app.delete('/api/youtube/cookie', async (req, res) => {
+    try {
+        // 로컬 파일 삭제
+        const cookiesPath = path.join(__dirname, 'youtube_cookies.txt');
+        if (fs.existsSync(cookiesPath)) {
+            fs.unlinkSync(cookiesPath);
+        }
+
+        // Supabase 삭제
+        if (supabase.enabled) {
+            await supabase.client
+                .from('settings')
+                .delete()
+                .eq('key', 'youtube_cookie');
+        }
+
+        return res.json({ success: true, message: 'YouTube 쿠키가 삭제되었습니다.' });
+    } catch (error) {
+        return res.status(500).json({ error: '쿠키 삭제 실패' });
+    }
+});
+
 // YouTube 쿠키 저장
 app.post('/api/youtube/cookie', async (req, res) => {
     const { cookie } = req.body;
