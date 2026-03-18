@@ -103,6 +103,29 @@ app.post('/api/extract', async (req, res) => {
     }
 });
 
+// Instagram 쿠키 삭제 API
+app.delete('/api/instagram/cookie', async (req, res) => {
+    try {
+        // 로컬 파일 삭제
+        const cookiesPath = path.join(__dirname, 'instagram_cookies.json');
+        if (fs.existsSync(cookiesPath)) {
+            fs.unlinkSync(cookiesPath);
+        }
+
+        // Supabase 삭제
+        if (supabase.enabled) {
+            await supabase.client
+                .from('settings')
+                .delete()
+                .eq('key', 'instagram_sessionid');
+        }
+
+        return res.json({ success: true, message: 'Instagram 쿠키가 삭제되었습니다.' });
+    } catch (error) {
+        return res.status(500).json({ error: '쿠키 삭제 실패' });
+    }
+});
+
 // Instagram 쿠키 직접 저장 API
 app.post('/api/instagram/cookie', async (req, res) => {
     const { sessionid } = req.body;

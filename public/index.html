@@ -1625,7 +1625,7 @@
                     </svg>
                     YouTube
                 </span>
-                <span class="platform-badge instagram">
+                <span class="platform-badge instagram" onclick="toggleInstagramBanner()" style="cursor: pointer;" title="Instagram 쿠키 설정">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="#e4405f">
                         <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
                     </svg>
@@ -1714,9 +1714,15 @@
                         </div>
                         <h4>sessionid 쿠키 직접 입력</h4>
                         <p>브라우저 개발자 도구에서 쿠키를 복사하세요.</p>
+                        <div id="instagramCookieStatusMsg" style="display: none; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            쿠키가 설정되어 있습니다.
+                        </div>
                         <div class="cookie-input-group">
                             <input type="text" id="sessionidInput" placeholder="sessionid 값을 붙여넣으세요">
-                            <button class="btn-auth-submit" onclick="saveCookie()">저장</button>
+                            <div style="display: flex; gap: 8px;">
+                                <button id="btnDeleteInstagramCookie" class="btn-auth-submit" onclick="deleteInstagramCookie()" style="display: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">삭제</button>
+                                <button class="btn-auth-submit" onclick="saveCookie()">저장</button>
+                            </div>
                         </div>
                         <a href="#" class="cookie-help-link" onclick="showCookieHelp(); return false;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -3341,6 +3347,7 @@
             checkTranscribeStatus();
             checkGoogleDriveStatus();
             checkBrowserLoginAvailable();
+            checkInstagramCookieStatus();
             checkYouTubeCookieStatus();
             loadNotionUrl();
             loadInstructors();
@@ -3414,7 +3421,8 @@
                 if (data.success) {
                     showSuccess('쿠키가 저장되었습니다!');
                     document.getElementById('sessionidInput').value = '';
-                    document.getElementById('loginBanner').style.display = 'none';
+                    instagramCookieExists = true;
+                    updateInstagramCookieUI();
                     // 이전에 실패한 URL 자동 재시도
                     if (lastFailedUrl) {
                         document.getElementById('urlInput').value = lastFailedUrl;
@@ -3426,6 +3434,58 @@
             } catch (error) {
                 showError('쿠키 저장 중 오류가 발생했습니다.');
                 console.error(error);
+            }
+        }
+
+        let instagramCookieExists = false;
+
+        async function checkInstagramCookieStatus() {
+            try {
+                const response = await fetch('/api/instagram/status');
+                const data = await response.json();
+                instagramCookieExists = data.loggedIn;
+                updateInstagramCookieUI();
+            } catch (error) {
+                instagramCookieExists = false;
+            }
+        }
+
+        function updateInstagramCookieUI() {
+            const statusMsg = document.getElementById('instagramCookieStatusMsg');
+            const deleteBtn = document.getElementById('btnDeleteInstagramCookie');
+            if (instagramCookieExists) {
+                statusMsg.style.display = 'block';
+                deleteBtn.style.display = 'inline-block';
+            } else {
+                statusMsg.style.display = 'none';
+                deleteBtn.style.display = 'none';
+            }
+        }
+
+        function toggleInstagramBanner() {
+            const banner = document.getElementById('loginBanner');
+            if (banner.style.display === 'none' || !banner.style.display) {
+                banner.style.display = 'block';
+                updateInstagramCookieUI();
+                banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        async function deleteInstagramCookie() {
+            try {
+                const response = await fetch('/api/instagram/cookie', { method: 'DELETE' });
+                const data = await response.json();
+                if (data.success) {
+                    showSuccess('Instagram 쿠키가 삭제되었습니다.');
+                    instagramCookieExists = false;
+                    updateInstagramCookieUI();
+                } else {
+                    showError(data.error || '쿠키 삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                showError('쿠키 삭제 중 오류가 발생했습니다.');
             }
         }
 
